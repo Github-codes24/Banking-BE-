@@ -25,6 +25,8 @@ const CustomerRoutes = require("./routes/coustomerRoutes")
 const ManagerRoutes = require("./routes/managerRoutes")
 const AgentRoutes = require("./routes/agentRoutes")
 const AdminRoutes = require("./routes/adminRoutes")
+const BranchRoutes = require("./routes/branchRoutes")
+const TransactionRoutes = require("./routes/transactionRoutes")
 
 
 app.get("/", (req, res) => {
@@ -35,6 +37,8 @@ app.use("/api/admin" , AdminRoutes)
 app.use("/api/customer" , CustomerRoutes)
 app.use("/api/manager" , ManagerRoutes)
 app.use("/api/agent" , AgentRoutes)
+app.use("/api/branch" , BranchRoutes)
+app.use("/api/transaction" , TransactionRoutes)
 
 
 

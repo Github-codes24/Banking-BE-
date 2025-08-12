@@ -7,7 +7,9 @@ const {
   getManager,
   updateManager,
   deleteManager,
-  updatePassword
+  updatePasswordOtp,
+  verifyOtp,
+  changePassword
 } = require('../controllers/managerController');
 
 
@@ -22,6 +24,9 @@ router.route('/:id')
   .put( updateManager)
   .delete( deleteManager);
 
-router.put('/:id/password',  updatePassword);
+router.post('/password-otp',  updatePasswordOtp);
+// router.put('/password-otp',  updatePasswordOtp);
+router.post("/verify-otp", verifyOtp);
+router.post("/change-password", changePassword);
 
 module.exports = router;

@@ -7,7 +7,7 @@ const coustomerSchema = new Schema(
 
     contact: {
       type: String,
-      unique:true,
+      unique: true,
       required: true,
       match: [/^\d{10}$/, "Please enter a valid 10-digit mobile number"],
     },
@@ -21,10 +21,57 @@ const coustomerSchema = new Schema(
 
     address: { type: String, maxlength: 200 },
 
-    scheme:{type:String},
-    amount:{type:String},
-    duration:{type:String},
-    pending:{type:String}
+    // scheme:{type:String},
+    // amount:{type:String},
+    // duration:{type:String},
+    // pending:{type:String},
+    branch: { type: mongoose.Schema.Types.ObjectId, ref: "Branch" },
+
+    managerId: { type: mongoose.Schema.Types.ObjectId, ref: "Manager" }, // Manager responsible
+    agentId: { type: mongoose.Schema.Types.ObjectId, ref: "Agent" },
+    schemes: [
+  {
+    type: {
+      type: String,
+      enum: ["FD", "RD", "Pigmy", "DailyDeposit", "Loan"],
+      required: true,
+    },
+    accountNumber: { type: String, required: true, unique: true },
+    startDate: { type: Date, required: true },
+    maturityDate: { type: Date }, // FD, RD, Loan
+
+    principalAmount: { type: Number, required: true },
+    interestRate: { type: Number }, // percentage
+    balance: { type: Number, default: 0 },
+    status: { type: String, enum: ["active", "closed"], default: "active" },
+
+    // FD specific fields
+    fdPayoutFrequency: {
+      type: String,
+      enum: ["monthly", "quarterly", "half-yearly", "yearly", "onMaturity"],
+    },
+
+    // RD specific fields
+    rdInstallmentAmount: { type: Number }, // monthly installment
+    rdDurationMonths: { type: Number },
+
+    // Pigmy specific fields
+    pigmyDailyDeposit: { type: Number },
+    pigmyCollectorId: { type: mongoose.Schema.Types.ObjectId, ref: "Agent" },
+
+    // Daily Deposit specific fields
+    dailyDepositAmount: { type: Number },
+    dailyDepositCollectorId: { type: mongoose.Schema.Types.ObjectId, ref: "Agent" },
+
+    // Loan specific fields
+    loanEMIAmount: { type: Number },
+    loanDurationMonths: { type: Number },
+    loanRemainingEmis: { type: Number },
+    lastEmiDate: { type: Date },
+    nextEmiDate: { type: Date },
+  },
+],
+
   },
   { timestamps: true } // ✅ Correct placement of schema options
 );

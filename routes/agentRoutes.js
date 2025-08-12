@@ -1,28 +1,12 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const {
-  registerAgent,
+const agentController = require("../controllers/agentController");
 
-  getAgents,
-  getAgent,
-  updateAgent,
-  deleteAgent
-
-} = require('../controllers/agentController');
-const { authCheck } = require('../middilewares/authCheck');
-// const { protect, authorize } = require('../middleware/auth');
-
-router.post('/register', authCheck, registerAgent);
-// router.post('/login', loginAgent);
-
-router.route('/')
-  .get(  getAgents);
-
-router.route('/:id')
-  .get( getAgent)
-  .put(authCheck, updateAgent)
-  .delete(authCheck, deleteAgent);
-
-// router.put('/:id/password', updatePassword);
+router.post("/", agentController.createAgent);
+router.get("/", agentController.getAgents);
+router.get("/:id", agentController.getAgentById);
+router.put("/:id", agentController.updateAgent);
+router.delete("/:id", agentController.deleteAgent);
+router.post("/login", agentController.loginAgent);
 
 module.exports = router;

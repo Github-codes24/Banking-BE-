@@ -24,13 +24,16 @@ const agentSchema = new Schema(
 
     alternateNumber: {
       type: String,
-
       match: [/^\d{10}$/, "Please enter a valid 10-digit mobile number"],
     },
 
     password: { type: String },
-    ownerId: { type: Schema.Types.ObjectId },
-
+ resetPasswordOtp: { type: String },
+    resetPasswordOtpExpires: { type: Date },
+    otpVerified: { type: Boolean, default: false },
+    managerId: { type: Schema.Types.ObjectId  ,ref:"Manager"},
+    branch: { type: mongoose.Schema.Types.ObjectId, ref: "Branch" },
+    isActive: { type: Boolean, default: true },
   },
   { timestamps: true } // ✅ Correct placement of schema options
 );

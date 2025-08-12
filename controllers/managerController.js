@@ -1,7 +1,9 @@
 const Manager = require('../models/managerModel');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-
+const sendOtpEmail = require("../utils/sendMail");
+// const Manager = require("../models/Manager"); // adjust path
+const crypto = require("crypto");
 // @desc    Register a new manager
 // @route   POST /api/managers/register
 // @access  Public
@@ -292,39 +294,132 @@ exports.deleteManager = async (req, res) => {
 // @desc    Update manager password
 // @route   PUT /api/managers/:id/password
 // @access  Private
-exports.updatePassword = async (req, res) => {
+exports.updatePasswordOtp = async (req, res) => {
   try {
-    const manager = await Manager.findById(req.params.id).select('+password');
+    const { email } = req.body;
 
+    // 1. Find manager by email
+    const manager = await Manager.findOne({ email });
     if (!manager) {
       return res.status(404).json({
         success: false,
-        error: 'Manager not found'
+        error: "Manager not found"
       });
     }
 
-    // Verify current password
-    const isMatch = await bcrypt.compare(req.body.currentPassword, manager.password);
-    if (!isMatch) {
-      return res.status(401).json({
+    // 2. Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // 3. Save OTP & expiry in DB
+    manager.resetPasswordOtp = otp;
+    manager.resetPasswordOtpExpires = Date.now() + 5 * 60 * 1000; // 5 minutes
+    await manager.save();
+
+    // 4. Send OTP email
+    await sendOtpEmail(email, otp);
+
+    // 5. Respond success
+    res.status(200).json({
+      success: true,
+      message: "OTP sent to email"
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      success: false,
+      error: "Server Error"
+    });
+  }
+};
+
+exports.verifyOtp = async (req, res) => {
+
+
+  try {
+    const { email, otp } = req.body;
+
+    // Find manager
+    const manager = await Manager.findOne({ email });
+    if (!manager) {
+      return res.status(404).json({
         success: false,
-        error: 'Current password is incorrect'
+        error: "Manager not found"
+      });
+    }
+
+    // Check OTP & expiry
+    if (
+      manager.resetPasswordOtp !== otp ||
+      !manager.resetPasswordOtpExpires ||
+      manager.resetPasswordOtpExpires < Date.now()
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid or expired OTP"
+      });
+    }
+
+    // Mark OTP as verified
+    manager.otpVerified = true;
+    await manager.save();
+
+    res.status(200).json({
+      success: true,
+      message: "OTP verified successfully"
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      success: false,
+      error: "Server Error"
+    });
+  }
+};
+
+exports.changePassword = async (req, res) => {
+  try {
+    const { email, newPassword } = req.body;
+
+    // Find manager
+    const manager = await Manager.findOne({ email }).select("+password");
+    if (!manager) {
+      return res.status(404).json({
+        success: false,
+        error: "Manager not found"
+      });
+    }
+
+    // Check if OTP was verified
+    if (!manager.otpVerified) {
+      return res.status(400).json({
+        success: false,
+        error: "OTP verification required"
       });
     }
 
     // Hash new password
     const salt = await bcrypt.genSalt(10);
-    manager.password = await bcrypt.hash(req.body.newPassword, salt);
+    manager.password = await bcrypt.hash(newPassword, salt);
+
+    // Clear OTP data & flag
+    manager.resetPasswordOtp = undefined;
+    manager.resetPasswordOtpExpires = undefined;
+    manager.otpVerified = undefined;
+
     await manager.save();
 
     res.status(200).json({
       success: true,
-      data: { id: manager._id }
+      message: "Password updated successfully"
     });
+
   } catch (err) {
+    console.error(err);
     res.status(500).json({
       success: false,
-      error: 'Server Error'
+      error: "Server Error"
     });
   }
 };

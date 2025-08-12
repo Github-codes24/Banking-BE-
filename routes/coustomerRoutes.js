@@ -9,7 +9,8 @@ const {
 const router = require("express").Router();
 
 router.get("/", getCustomers);
-// GET ?page=2&limit=5  GET /api/customers?fromDate=2023-01-01&toDate=2023-12-31
+// GET /api/customers?page=1&limit=5&name=Ramesh&branch=Bangalore&schemeType=FD
+
 router.get("/:id", getCustomer);
 router.post("/", createCustomer);
 router.put("/:id", updateCustomer);

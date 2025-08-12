@@ -27,8 +27,11 @@ const managerSchema = new Schema(
       required: true,
       match: [/^\d{10}$/, "Please enter a valid 10-digit mobile number"],
     },
-
+    resetPasswordOtp: { type: String },
+    resetPasswordOtpExpires: { type: Date },
+    otpVerified: { type: Boolean, default: false },
     password: { type: String },
+    branch: { type: mongoose.Schema.Types.ObjectId, ref: "Branch" },
   },
   { timestamps: true } // ✅ Correct placement of schema options
 );
