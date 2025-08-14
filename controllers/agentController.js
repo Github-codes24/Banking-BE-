@@ -1,6 +1,7 @@
 const Agent = require("../models/agentModel");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const Manager = require("../models/managerModel");
 // Create Agent
 exports.createAgent = async (req, res) => {
   try {
@@ -9,17 +10,19 @@ exports.createAgent = async (req, res) => {
       const salt = await bcrypt.genSalt(10);
       req.body.password = await bcrypt.hash(req.body.password, salt);
     }
-
+    const managerId = req.body.managerId;
+    const manager =await Manager.findById(managerId);
+     if (!manager) {
+      return res.status(404).json({ success: false, error: "manager not found" });
+    }
+    console.log(manager,"manager");
+    req.body.branch = manager.branch;
     const agent = await Agent.create(req.body);
     res.status(201).json({ success: true, data: agent });
   } catch (err) {
     res.status(400).json({ success: false, message: err.message });
   }
 };
-
-
-
-
 
 exports.loginAgent = async (req, res) => {
   try {
@@ -29,7 +32,7 @@ exports.loginAgent = async (req, res) => {
     if (!contact || !password) {
       return res.status(400).json({
         success: false,
-        message: "Please provide contact number and password"
+        message: "Please provide contact number and password",
       });
     }
 
@@ -38,7 +41,7 @@ exports.loginAgent = async (req, res) => {
     if (!agent) {
       return res.status(404).json({
         success: false,
-        message: "Agent not found"
+        message: "Agent not found",
       });
     }
 
@@ -47,7 +50,7 @@ exports.loginAgent = async (req, res) => {
     if (!isMatch) {
       return res.status(401).json({
         success: false,
-        message: "Invalid credentials"
+        message: "Invalid credentials",
       });
     }
 
@@ -68,13 +71,13 @@ exports.loginAgent = async (req, res) => {
         contact: agent.contact,
         email: agent.email,
         branch: agent.branch,
-        managerId: agent.managerId
-      }
+        managerId: agent.managerId,
+      },
     });
   } catch (err) {
     res.status(500).json({
       success: false,
-      message: err.message
+      message: err.message,
     });
   }
 };
@@ -126,7 +129,9 @@ exports.getAgentById = async (req, res) => {
       .populate("branch", "name code");
 
     if (!agent) {
-      return res.status(404).json({ success: false, message: "Agent not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Agent not found" });
     }
 
     res.status(200).json({ success: true, data: agent });
@@ -149,7 +154,9 @@ exports.updateAgent = async (req, res) => {
     });
 
     if (!agent) {
-      return res.status(404).json({ success: false, message: "Agent not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Agent not found" });
     }
 
     res.status(200).json({ success: true, data: agent });
@@ -163,10 +170,14 @@ exports.deleteAgent = async (req, res) => {
   try {
     const agent = await Agent.findByIdAndDelete(req.params.id);
     if (!agent) {
-      return res.status(404).json({ success: false, message: "Agent not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Agent not found" });
     }
 
-    res.status(200).json({ success: true, message: "Agent deleted successfully" });
+    res
+      .status(200)
+      .json({ success: true, message: "Agent deleted successfully" });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

@@ -1,5 +1,5 @@
 const Customer = require("../models/coustomerModel");
-
+const Agent = require("../models/agentModel");
 // @desc    Get all customers
 exports.getCustomers = async (req, res) => {
   try {
@@ -96,7 +96,14 @@ exports.getCustomer = async (req, res) => {
 // @desc    Create customer
 exports.createCustomer = async (req, res) => {
   try {
-    const customer = await Customer.create(req.body);
+
+    const agent = await Agent.findById(req.body.agentId);
+    if (!agent) {
+      return res.status(404).json({ success: false, error: "Agent not found" });
+    }
+    req.body.branch  = agent.branch
+    req.body.managerId  = agent.managerId
+const customer = await Customer.create(req.body);
     res.status(201).json({ success: true, data: customer });
   } catch (err) {
     console.error(err);
