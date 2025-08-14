@@ -1,9 +1,10 @@
-const Manager = require('../models/managerModel');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
+const Manager = require("../models/managerModel");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 const sendOtpEmail = require("../utils/sendMail");
 // const Manager = require("../models/Manager"); // adjust path
 const crypto = require("crypto");
+const Agent = require("../models/agentModel");
 // @desc    Register a new manager
 // @route   POST /api/managers/register
 // @access  Public
@@ -12,11 +13,13 @@ exports.registerManager = async (req, res) => {
     const { name, contact, email, password } = req.body;
 
     // Check if manager exists
-    const existingManager = await Manager.findOne({ $or: [{ email }, { contact }] });
+    const existingManager = await Manager.findOne({
+      $or: [{ email }, { contact }],
+    });
     if (existingManager) {
       return res.status(400).json({
         success: false,
-        error: 'Manager with this email or contact already exists'
+        error: "Manager with this email or contact already exists",
       });
     }
 
@@ -27,7 +30,7 @@ exports.registerManager = async (req, res) => {
     // Create manager
     const manager = await Manager.create({
       ...req.body,
-      password: hashedPassword
+      password: hashedPassword,
     });
 
     // Create token
@@ -40,19 +43,19 @@ exports.registerManager = async (req, res) => {
     res.status(201).json({
       success: true,
 
-      data: manager
+      data: manager,
     });
   } catch (err) {
-    if (err.name === 'ValidationError') {
-      const messages = Object.values(err.errors).map(val => val.message);
+    if (err.name === "ValidationError") {
+      const messages = Object.values(err.errors).map((val) => val.message);
       return res.status(400).json({
         success: false,
-        error: messages
+        error: messages,
       });
     }
     res.status(500).json({
       success: false,
-      error: 'Server Error'
+      error: "Server Error",
     });
   }
 };
@@ -68,16 +71,16 @@ exports.loginManager = async (req, res) => {
     if (!email || !password) {
       return res.status(400).json({
         success: false,
-        error: 'Please provide email and password'
+        error: "Please provide email and password",
       });
     }
 
     // Check for manager
-    const manager = await Manager.findOne({ email }).select('+password');
+    const manager = await Manager.findOne({ email }).select("+password");
     if (!manager) {
       return res.status(401).json({
         success: false,
-        error: 'Invalid credentials'
+        error: "Invalid credentials",
       });
     }
 
@@ -86,13 +89,13 @@ exports.loginManager = async (req, res) => {
     if (!isMatch) {
       return res.status(401).json({
         success: false,
-        error: 'Invalid credentials'
+        error: "Invalid credentials",
       });
     }
 
     // Create token
     const token = jwt.sign(
-      { id: manager._id, role: 'manager' },
+      { id: manager._id, role: "manager" },
       process.env.ACCESS_TOKEN_SECRET,
       { expiresIn: process.env.ACCESS_TOKEN_EXPIRY }
     );
@@ -100,12 +103,12 @@ exports.loginManager = async (req, res) => {
     res.status(200).json({
       success: true,
       token,
-      data: manager
+      data: manager,
     });
   } catch (err) {
     res.status(500).json({
       success: false,
-      error: 'Server Error'
+      error: "Server Error",
     });
   }
 };
@@ -127,7 +130,7 @@ exports.getManagers = async (req, res) => {
       email,
       gender,
       education,
-      sort = '-createdAt'
+      sort = "-createdAt",
     } = req.query;
 
     // Build filter object
@@ -143,19 +146,19 @@ exports.getManagers = async (req, res) => {
     // Global search filter (searches multiple fields)
     if (search) {
       filter.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { contact: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-        { address: { $regex: search, $options: 'i' } },
-        { education: { $regex: search, $options: 'i' } },
-        { alternateNumber: { $regex: search, $options: 'i' } }
+        { name: { $regex: search, $options: "i" } },
+        { contact: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+        { address: { $regex: search, $options: "i" } },
+        { education: { $regex: search, $options: "i" } },
+        { alternateNumber: { $regex: search, $options: "i" } },
       ];
     } else {
       // Individual field filters (only applied if no global search)
-      if (name) filter.name = { $regex: name, $options: 'i' };
+      if (name) filter.name = { $regex: name, $options: "i" };
       if (contact) filter.contact = contact;
       if (email) filter.email = email;
-      if (education) filter.education = { $regex: education, $options: 'i' };
+      if (education) filter.education = { $regex: education, $options: "i" };
     }
 
     // Exact match filters (always applied)
@@ -170,7 +173,7 @@ exports.getManagers = async (req, res) => {
 
     // Execute query
     const managers = await Manager.find(filter)
-      .select('-password')
+      .select("-password")
       .sort(sort)
       .skip(startIndex)
       .limit(limit);
@@ -185,17 +188,16 @@ exports.getManagers = async (req, res) => {
         totalPages: Math.ceil(total / limit),
         totalItems: total,
         ...(endIndex < total && { nextPage: parseInt(page) + 1 }),
-        ...(startIndex > 0 && { prevPage: parseInt(page) - 1 })
+        ...(startIndex > 0 && { prevPage: parseInt(page) - 1 }),
       },
-      data: managers
+      data: managers,
     });
-
   } catch (err) {
     console.error(err);
     res.status(500).json({
       success: false,
-      error: 'Server Error',
-      message: err.message
+      error: "Server Error",
+      message: err.message,
     });
   }
 };
@@ -205,23 +207,23 @@ exports.getManagers = async (req, res) => {
 // @access  Private/Admin
 exports.getManager = async (req, res) => {
   try {
-    const manager = await Manager.findById(req.params.id).select('-password');
+    const manager = await Manager.findById(req.params.id).select("-password");
 
     if (!manager) {
       return res.status(404).json({
         success: false,
-        error: 'Manager not found'
+        error: "Manager not found",
       });
     }
 
     res.status(200).json({
       success: true,
-      data: manager
+      data: manager,
     });
   } catch (err) {
     res.status(500).json({
       success: false,
-      error: 'Server Error'
+      error: "Server Error",
     });
   }
 };
@@ -236,31 +238,31 @@ exports.updateManager = async (req, res) => {
 
     const manager = await Manager.findByIdAndUpdate(req.params.id, updateData, {
       new: true,
-      runValidators: true
-    }).select('-password');
+      runValidators: true,
+    }).select("-password");
 
     if (!manager) {
       return res.status(404).json({
         success: false,
-        error: 'Manager not found'
+        error: "Manager not found",
       });
     }
 
     res.status(200).json({
       success: true,
-      data: manager
+      data: manager,
     });
   } catch (err) {
-    if (err.name === 'ValidationError') {
-      const messages = Object.values(err.errors).map(val => val.message);
+    if (err.name === "ValidationError") {
+      const messages = Object.values(err.errors).map((val) => val.message);
       return res.status(400).json({
         success: false,
-        error: messages
+        error: messages,
       });
     }
     res.status(500).json({
       success: false,
-      error: 'Server Error'
+      error: "Server Error",
     });
   }
 };
@@ -275,18 +277,18 @@ exports.deleteManager = async (req, res) => {
     if (!manager) {
       return res.status(404).json({
         success: false,
-        error: 'Manager not found'
+        error: "Manager not found",
       });
     }
 
     res.status(200).json({
       success: true,
-      data: {}
+      data: {},
     });
   } catch (err) {
     res.status(500).json({
       success: false,
-      error: 'Server Error'
+      error: "Server Error",
     });
   }
 };
@@ -303,7 +305,7 @@ exports.updatePasswordOtp = async (req, res) => {
     if (!manager) {
       return res.status(404).json({
         success: false,
-        error: "Manager not found"
+        error: "Manager not found",
       });
     }
 
@@ -321,21 +323,18 @@ exports.updatePasswordOtp = async (req, res) => {
     // 5. Respond success
     res.status(200).json({
       success: true,
-      message: "OTP sent to email"
+      message: "OTP sent to email",
     });
-
   } catch (err) {
     console.error(err);
     res.status(500).json({
       success: false,
-      error: "Server Error"
+      error: "Server Error",
     });
   }
 };
 
 exports.verifyOtp = async (req, res) => {
-
-
   try {
     const { email, otp } = req.body;
 
@@ -344,7 +343,7 @@ exports.verifyOtp = async (req, res) => {
     if (!manager) {
       return res.status(404).json({
         success: false,
-        error: "Manager not found"
+        error: "Manager not found",
       });
     }
 
@@ -356,7 +355,7 @@ exports.verifyOtp = async (req, res) => {
     ) {
       return res.status(400).json({
         success: false,
-        error: "Invalid or expired OTP"
+        error: "Invalid or expired OTP",
       });
     }
 
@@ -366,14 +365,13 @@ exports.verifyOtp = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: "OTP verified successfully"
+      message: "OTP verified successfully",
     });
-
   } catch (err) {
     console.error(err);
     res.status(500).json({
       success: false,
-      error: "Server Error"
+      error: "Server Error",
     });
   }
 };
@@ -387,7 +385,7 @@ exports.changePassword = async (req, res) => {
     if (!manager) {
       return res.status(404).json({
         success: false,
-        error: "Manager not found"
+        error: "Manager not found",
       });
     }
 
@@ -395,7 +393,7 @@ exports.changePassword = async (req, res) => {
     if (!manager.otpVerified) {
       return res.status(400).json({
         success: false,
-        error: "OTP verification required"
+        error: "OTP verification required",
       });
     }
 
@@ -412,14 +410,34 @@ exports.changePassword = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: "Password updated successfully"
+      message: "Password updated successfully",
     });
-
   } catch (err) {
     console.error(err);
     res.status(500).json({
       success: false,
-      error: "Server Error"
+      error: "Server Error",
+    });
+  }
+};
+
+exports.getAgents = async (req, res) => {
+    console.log(req.user,"id");
+  try {
+
+   const agents = await Agent.find({ managerId: req.user._id })
+  .populate('managerId', 'name email') // field name & fields to return
+  .select("-password");
+
+    res.status(200).json({
+      success: true,
+      data: agents,
+    });
+  } catch (err) {
+    console.log(err)
+    res.status(500).json({
+      success: false,
+      error: "Server Error",
     });
   }
 };

@@ -9,8 +9,10 @@ const {
   deleteManager,
   updatePasswordOtp,
   verifyOtp,
-  changePassword
+  changePassword,
+  getAgents
 } = require('../controllers/managerController');
+const { authCheck } = require('../middilewares/authCheck');
 
 
 router.post('/register', registerManager);
@@ -28,5 +30,6 @@ router.post('/password-otp',  updatePasswordOtp);
 // router.put('/password-otp',  updatePasswordOtp);
 router.post("/verify-otp", verifyOtp);
 router.post("/change-password", changePassword);
+router.get("/agents", authCheck, getAgents);
 
 module.exports = router;

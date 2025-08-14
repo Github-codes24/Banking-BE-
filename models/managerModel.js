@@ -32,6 +32,7 @@ const managerSchema = new Schema(
     otpVerified: { type: Boolean, default: false },
     password: { type: String },
     branch: { type: mongoose.Schema.Types.ObjectId, ref: "Branch" },
+      bank:{type:String,default:"Maa Anusaya Urban"}
   },
   { timestamps: true } // ✅ Correct placement of schema options
 );

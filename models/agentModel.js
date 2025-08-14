@@ -34,6 +34,7 @@ const agentSchema = new Schema(
     managerId: { type: Schema.Types.ObjectId  ,ref:"Manager"},
     branch: { type: mongoose.Schema.Types.ObjectId, ref: "Branch" },
     isActive: { type: Boolean, default: true },
+    bank:{type:String,default:"Maa Anusaya Urban"}
   },
   { timestamps: true } // ✅ Correct placement of schema options
 );
