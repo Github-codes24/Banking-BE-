@@ -102,7 +102,9 @@ exports.addBanner = async (req, res) => {
       try {
         bannerData = JSON.parse(req.body.bannerImages);
       } catch (e) {
-        return res.status(400).json({ success: false, error: "Invalid bannerImages JSON" });
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid bannerImages JSON" });
       }
     } else if (Array.isArray(req.body.bannerImages)) {
       bannerData = req.body.bannerImages;
@@ -139,7 +141,6 @@ exports.addBanner = async (req, res) => {
   }
 };
 
-
 // Add gallery image (upload to cloudinary)
 exports.addGalleryImage = async (req, res) => {
   try {
@@ -149,17 +150,18 @@ exports.addGalleryImage = async (req, res) => {
 
     // const galleryData = req.body.galleryImages || "[]";
 
-let galleryData = [];
+    let galleryData = [];
     if (typeof req.body.galleryImages === "string") {
       try {
         galleryData = JSON.parse(req.body.galleryImages);
       } catch (e) {
-        return res.status(400).json({ success: false, error: "Invalid bannerImages JSON" });
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid bannerImages JSON" });
       }
     } else if (Array.isArray(req.body.galleryImages)) {
       galleryData = req.body.galleryImages;
     }
-
 
     const galleryDataWithImages = [];
     let galleryImageIndex = 0;
@@ -177,14 +179,13 @@ let galleryData = [];
       }
 
       galleryDataWithImages.push({
-        category: item.category ,
+        category: item.category,
         imageUrl,
-        caption:item.caption
-
+        caption: item.caption,
       });
     }
 
-    admin.gallery=galleryDataWithImages;
+    admin.gallery = galleryDataWithImages;
 
     await admin.save();
     res.status(200).json({ success: true, data: admin.gallery });
@@ -201,18 +202,18 @@ exports.addCareers = async (req, res) => {
 
     // const careerData = req.body.careerData || "[]";
 
-let careerData = [];
+    let careerData = [];
     if (typeof req.body.careerData === "string") {
       try {
         careerData = JSON.parse(req.body.careerData);
       } catch (e) {
-        return res.status(400).json({ success: false, error: "Invalid bannerImages JSON" });
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid bannerImages JSON" });
       }
     } else if (Array.isArray(req.body.careerData)) {
       careerData = req.body.careerData;
     }
-
-
 
     const careerDataWithImages = [];
     let careerDocsIndex = 0;
@@ -230,17 +231,16 @@ let careerData = [];
       }
 
       careerDataWithImages.push({
-        title: item.title ,
+        title: item.title,
         docs,
-       email:item.email,
+        email: item.email,
 
-       contactPerson:item.contactPerson,
-       location:item.location
-
+        contactPerson: item.contactPerson,
+        location: item.location,
       });
     }
 
-    admin.careers=careerDataWithImages
+    admin.careers = careerDataWithImages;
 
     await admin.save();
     res.status(200).json({ success: true, data: admin.careers });
@@ -257,13 +257,14 @@ exports.addLoansApplicationForm = async (req, res) => {
 
     // const loanApplicationFormData = req.body.loanData || "[]";
 
-
-let loanApplicationFormData = [];
+    let loanApplicationFormData = [];
     if (typeof req.body.loanData === "string") {
       try {
         loanApplicationFormData = JSON.parse(req.body.loanData);
       } catch (e) {
-        return res.status(400).json({ success: false, error: "Invalid bannerImages JSON" });
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid bannerImages JSON" });
       }
     } else if (Array.isArray(req.body.loanData)) {
       loanApplicationFormData = req.body.loanData;
@@ -285,14 +286,12 @@ let loanApplicationFormData = [];
       }
 
       loanDataWithImages.push({
-        title: item.title ,
-        docs
-
-
+        title: item.title,
+        docs,
       });
     }
 
-    admin.loanApplication=loanDataWithImages;
+    admin.loanApplication = loanDataWithImages;
 
     await admin.save();
     res.status(200).json({ success: true, data: admin.loanApplication });
@@ -309,12 +308,14 @@ exports.addLegalDocs = async (req, res) => {
 
     // const legalDocsData = req.body.legalData || "[]";
 
-let legalDocsData = [];
+    let legalDocsData = [];
     if (typeof req.body.legalData === "string") {
       try {
         legalDocsData = JSON.parse(req.body.legalData);
       } catch (e) {
-        return res.status(400).json({ success: false, error: "Invalid bannerImages JSON" });
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid bannerImages JSON" });
       }
     } else if (Array.isArray(req.body.legalData)) {
       legalDocsData = req.body.legalData;
@@ -336,14 +337,12 @@ let legalDocsData = [];
       }
 
       legalDataWithImages.push({
-        title: item.title ,
-        docs
-
-
+        title: item.title,
+        docs,
       });
     }
 
-    admin.legalDocs=legalDataWithImages;
+    admin.legalDocs = legalDataWithImages;
 
     await admin.save();
     res.status(200).json({ success: true, data: admin.legalDocs });
@@ -352,4 +351,154 @@ let legalDocsData = [];
   }
 };
 
+exports.addFaq = async (req, res) => {
+  try {
+    const { adminId } = req.params;
+    const { question, answer } = req.body;
 
+    const admin = await Admin.findById(adminId);
+    if (!admin)
+      return res
+        .status(404)
+        .json({ success: false, message: "Admin not found" });
+
+    admin.faq.push({ question, answer });
+    await admin.save();
+
+    res.status(201).json({
+      success: true,
+      message: "FAQ added successfully",
+      faq: admin.faq,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Get all FAQs
+exports.getFaqs = async (req, res) => {
+  try {
+    const { adminId } = req.params;
+
+    const admin = await Admin.findById(adminId).select("faq");
+    if (!admin)
+      return res
+        .status(404)
+        .json({ success: false, message: "Admin not found" });
+
+    res.json({ success: true, faq: admin.faq });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Update FAQ
+exports.updateFaq = async (req, res) => {
+  try {
+    const { adminId, faqId } = req.params;
+    const { question, answer } = req.body;
+
+    const admin = await Admin.findById(adminId);
+    if (!admin)
+      return res
+        .status(404)
+        .json({ success: false, message: "Admin not found" });
+
+    const faq = admin.faq.id(faqId);
+    if (!faq)
+      return res.status(404).json({ success: false, message: "FAQ not found" });
+
+    if (question) faq.question = question;
+    if (answer) faq.answer = answer;
+
+    await admin.save();
+
+    res.json({ success: true, message: "FAQ updated successfully", faq });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Delete FAQ
+exports.deleteFaq = async (req, res) => {
+  try {
+    const { adminId, faqId } = req.params;
+
+    const admin = await Admin.findById(adminId);
+    if (!admin)
+      return res
+        .status(404)
+        .json({ success: false, message: "Admin not found" });
+
+    const faq = admin.faq.id(faqId);
+    if (!faq)
+      return res.status(404).json({ success: false, message: "FAQ not found" });
+
+    faq.deleteOne();
+    await admin.save();
+
+    res.json({ success: true, message: "FAQ deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// schems
+exports.addSchems = async (req, res) => {
+  try {
+    const admin = await Admin.findById(req.params.adminId);
+    if (!admin) {
+      return res.status(404).json({ success: false, error: "Admin not found" });
+    }
+
+    console.log("req.body.schemsImages", req.body.schemsImages);
+    let schemsData = [];
+
+    if (typeof req.body.schemsImages === "string") {
+      try {
+        schemsData = JSON.parse(req.body.schemsImages);
+      } catch (e) {
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid schemsImages JSON" });
+      }
+    } else if (Array.isArray(req.body.schemsImages)) {
+      schemsData = req.body.schemsImages;
+    }
+
+    const schemsDataWithImages = [];
+    let schemsImageIndex = 0;
+
+    for (const item of schemsData) {
+      let imageUrl = item.imageUrl;
+
+      if (
+        (!imageUrl || imageUrl === "null" || imageUrl === "") &&
+        req.files?.schemsImage?.[schemsImageIndex]
+      ) {
+        const path = req.files.schemsImage[schemsImageIndex].path;
+        const uploaded = await uploadToCloudinary(path);
+        imageUrl = uploaded.url;
+        schemsImageIndex++;
+      }
+
+      schemsDataWithImages.push({
+        name: item.name || "",
+        desc: item.desc,
+        pdf: imageUrl,
+      });
+    }
+
+    admin.schemes = schemsDataWithImages;
+    await admin.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Schemes added successfully",
+      data: admin.schemes,
+    });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+};

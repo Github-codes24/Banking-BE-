@@ -5,7 +5,7 @@ const ledgerSchema = new mongoose.Schema(
     duration: [
       {
         durationType: { type: String, enum: ["day", "month", "year"] },
-        duration:{type:String} // in months or years
+        duration: { type: String }, // in months or years
       },
     ],
     interestRate: {
@@ -15,14 +15,7 @@ const ledgerSchema = new mongoose.Schema(
 
     ledgerType: {
       type: String,
-      enum: [
-        "RD",
-        "Lakhpati Yojna",
-        "PigMy",
-        "Saving Account",
-        "Daily Deposit",
-        "Loan",
-      ],
+      enum: ["RD", "Lakhpati Yojna", "PigMy", "Saving Account", "FD", "Loan"],
       required: true,
     },
   },

@@ -7,67 +7,65 @@ exports.getCustomers = async (req, res) => {
     const limit = parseInt(req.query.limit, 10) || 10;
     const { fromDate, toDate, name, contact, branch, schemeType } = req.query;
 
-    // Build filter object
     const filter = {};
 
-    // Date range filter
+    // Date filter
     if (fromDate || toDate) {
       filter.createdAt = {};
-      if (fromDate) filter.createdAt.$gte = new Date(fromDate);
-      if (toDate) filter.createdAt.$lte = new Date(toDate);
+      if (fromDate && !isNaN(new Date(fromDate))) {
+        filter.createdAt.$gte = new Date(fromDate);
+      }
+      if (toDate && !isNaN(new Date(toDate))) {
+        filter.createdAt.$lte = new Date(toDate);
+      }
     }
 
-    // Name filter (case-insensitive partial match)
+    // Name filter
     if (name) {
       filter.name = { $regex: name, $options: "i" };
     }
 
-    // Contact filter (exact match)
+    // Contact filter
     if (contact) {
       filter.contact = contact;
     }
 
-    // Branch filter (case-insensitive)
+    // Branch filter (match ObjectId directly)
     if (branch) {
-      filter.branch = { $regex: branch, $options: "i" };
+      if (mongoose.Types.ObjectId.isValid(branch)) {
+        filter.branch = branch;
+      }
     }
 
     // Scheme type filter
     if (schemeType) {
-      filter["schemes.type"] = schemeType;
+      if (mongoose.Types.ObjectId.isValid(schemeType)) {
+        filter["schemes.type"] = schemeType;
+      }
     }
 
-    // Get total count
     const total = await Customer.countDocuments(filter);
 
-    const startIndex = (page - 1) * limit;
-    const endIndex = page * limit;
-
-    // Fetch customers
     const customers = await Customer.find(filter)
       .sort({ createdAt: -1 })
-      .skip(startIndex)
-      .limit(limit);
-
-    // Pagination info
-    const pagination = {
-      currentPage: page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-      totalItems: total,
-    };
-
-    if (endIndex < total) {
-      pagination.next = { page: page + 1, limit };
-    }
-    if (startIndex > 0) {
-      pagination.prev = { page: page - 1, limit };
-    }
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .populate("branch", "name")
+      .populate("managerId", "name")
+      .populate("agentId", "name")
+      .populate("schemes.type", "ledgerType");
 
     res.status(200).json({
       success: true,
       count: customers.length,
-      pagination,
+      pagination: {
+        currentPage: page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        totalItems: total,
+        hasNextPage: page * limit < total,
+        hasPrevPage: page > 1,
+      },
       data: customers,
     });
   } catch (err) {
@@ -79,6 +77,7 @@ exports.getCustomers = async (req, res) => {
     });
   }
 };
+
 
 // @desc    Get single customer
 exports.getCustomer = async (req, res) => {

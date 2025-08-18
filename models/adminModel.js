@@ -44,6 +44,20 @@ const adminSchema = new mongoose.Schema(
         docs: { type: String },
       },
     ],
+    faq:[
+      {
+        question: { type: String },
+
+        answer: { type: String },
+      },
+    ]
+    ,schemes:[
+      {
+        name:{type:String},
+        desc:{type:String},
+        pdf:{type:String},
+      }
+    ]
   },
   { timestamps: true }
 );

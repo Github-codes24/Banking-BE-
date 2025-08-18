@@ -5,9 +5,8 @@ const sendOtpEmail = require("../utils/sendMail");
 // const Manager = require("../models/Manager"); // adjust path
 const crypto = require("crypto");
 const Agent = require("../models/agentModel");
-// @desc    Register a new manager
-// @route   POST /api/managers/register
-// @access  Public
+const Branch =  require("../models/branchModel")
+
 exports.registerManager = async (req, res) => {
   try {
     const { name, contact, email, password } = req.body;
@@ -27,11 +26,20 @@ exports.registerManager = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create manager
-    const manager = await Manager.create({
-      ...req.body,
-      password: hashedPassword,
-    });
+const branchId = req.body.branch;
+
+// Create manager
+const manager = await Manager.create({
+  ...req.body,
+  password: hashedPassword,
+});
+
+// Update branch with managerId
+await Branch.findByIdAndUpdate(
+  branchId, // Pass ID directly here
+  { managerId: manager._id }, // Update object
+  { new: true } // Optional, returns updated document
+);
 
     // Create token
     // const token = jwt.sign(
