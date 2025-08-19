@@ -14,6 +14,7 @@ const {
   addLoansApplicationForm,
   addCareers,
   addFaq,
+  fetchAdminData,
 } = require("../controllers/adminController");
 const upload = require("../utils/multer");
 
@@ -26,6 +27,8 @@ router.post(
   upload.fields([{ name: "bannerImage", maxCount: 5 }]),
   addBanner
 );
+
+router.get("/fetchAdmin" ,fetchAdminData)
 
 // Gallery upload
 router.post(

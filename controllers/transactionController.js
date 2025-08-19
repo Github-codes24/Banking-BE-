@@ -698,6 +698,138 @@ exports.getTransactions = async (req, res) => {
 };
 
 
+
+// ✅ Get transactions filtered by managerId and transactionType
+exports.getTransactionsByManager = async (req, res) => {
+  try {
+    const { managerId } = req.params;
+    const { transactionType } = req.query; // pass in query string
+
+    if (!managerId) {
+      return res.status(400).json({ success: false, message: "ManagerId is required" });
+    }
+
+    let filter = { managerId };
+
+    if (transactionType) {
+      filter.transactionType = transactionType;
+    }
+
+    const transactions = await Transaction.find(filter)
+      .populate("customerId", "name contact")
+      .populate("collectedByAgentId", "name contact")
+      .sort({ transactionDate: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: transactions.length,
+      data: transactions,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+
+exports.getTodayYesterdayTransactionsManager = async (req, res) => {
+  try {
+    const { managerId } = req.params;
+
+    if (!managerId) {
+      return res.status(400).json({ success: false, message: "ManagerId required" });
+    }
+
+    // Get today's start and end
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    // Get yesterday's start and end
+    const yesterdayStart = new Date(todayStart);
+    yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+
+    const yesterdayEnd = new Date(todayEnd);
+    yesterdayEnd.setDate(yesterdayEnd.getDate() - 1);
+
+    // Query for today
+    const todayTransactions = await Transaction.find({
+      managerId,
+      transactionDate: { $gte: todayStart, $lte: todayEnd },
+    })
+      .populate("customerId", "name contact")
+      .populate("collectedByAgentId", "name contact")
+      .sort({ transactionDate: -1 });
+
+    // Query for yesterday
+    const yesterdayTransactions = await Transaction.find({
+      managerId,
+      transactionDate: { $gte: yesterdayStart, $lte: yesterdayEnd },
+    })
+      .populate("customerId", "name contact")
+      .populate("collectedByAgentId", "name contact")
+      .sort({ transactionDate: -1 });
+
+    res.status(200).json({
+      success: true,
+      today: todayTransactions,
+      yesterday: yesterdayTransactions,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+
+
+
+exports.getTodayYesterdayTransactions = async (req, res) => {
+  try {
+    // 📅 Today range
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    // 📅 Yesterday range
+    const yesterdayStart = new Date(todayStart);
+    yesterdayStart.setDate(todayStart.getDate() - 1);
+    const yesterdayEnd = new Date(todayEnd);
+    yesterdayEnd.setDate(todayEnd.getDate() - 1);
+
+    // ✅ Fetch today’s transactions
+    const todayTransactions = await Transaction.find({
+      transactionDate: { $gte: todayStart, $lte: todayEnd }
+    })
+      .populate("customerId", "name contact")
+      .populate("collectedByAgentId", "name contact")
+      .sort({ transactionDate: -1 });
+
+    // ✅ Fetch yesterday’s transactions
+    const yesterdayTransactions = await Transaction.find({
+      transactionDate: { $gte: yesterdayStart, $lte: yesterdayEnd }
+    })
+      .populate("customerId", "name contact")
+      .populate("collectedByAgentId", "name contact")
+      .sort({ transactionDate: -1 });
+
+    res.status(200).json({
+      success: true,
+      todayCount: todayTransactions.length,
+      yesterdayCount: yesterdayTransactions.length,
+      todayTransactions,
+      yesterdayTransactions,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+
 exports.getTransactionById = async (req, res) => {
   try {
     const transaction = await Transaction.findById(req.params.id)
@@ -1109,17 +1241,17 @@ exports.approveTransaactionForSavingAc = async (req, res) => {
   }
 };
 
-async function fixAgentIds() {
-  const txs = await Transaction.find({ collectedByAgentId: { $type: "string" } });
+// async function fixAgentIds() {
+//   const txs = await Transaction.find({ collectedByAgentId: { $type: "string" } });
 
-  for (let tx of txs) {
-    await Transaction.updateOne(
-      { _id: tx._id },
-      { $set: { collectedByAgentId: mongoose.Types.ObjectId(tx.collectedByAgentId) } }
-    );
-  }
+//   for (let tx of txs) {
+//     await Transaction.updateOne(
+//       { _id: tx._id },
+//       { $set: { collectedByAgentId: mongoose.Types.ObjectId(tx.collectedByAgentId) } }
+//     );
+//   }
 
-  console.log("✅ Fixed", txs.length, "transactions");
-}
+//   console.log("✅ Fixed", txs.length, "transactions");
+// }
 
-fixAgentIds();
+// fixAgentIds();

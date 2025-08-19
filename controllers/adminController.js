@@ -502,3 +502,23 @@ exports.addSchems = async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 };
+
+exports.fetchAdminData = async (req, res) => {
+  try {
+    const admin = await Admin.findOne(); // gets the first admin
+    if (!admin) {
+      return res
+        .status(404)
+        .json({ success: false, message: "No admin found" });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Admin data fetched successfully",
+      data: admin,
+    });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
