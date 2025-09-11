@@ -20,10 +20,6 @@ const coustomerSchema = new Schema(
 
     address: { type: String, maxlength: 200 },
 
-    // scheme:{type:String},
-    // amount:{type:String},
-    // duration:{type:String},
-    // pending:{type:String},
     branch: { type: mongoose.Schema.Types.ObjectId, ref: "Branch" },
     bank: { type: String, default: "Maa Anusaya Urban" },
     managerId: { type: mongoose.Schema.Types.ObjectId, ref: "Manager" }, // Manager responsible
@@ -65,7 +61,7 @@ const coustomerSchema = new Schema(
           type: String,
           enum: ["active", "closed", "matured"],
         },
-        fdCloseDate :{type:Date},
+        fdCloseDate: { type: Date },
 
         // RD specific fields
         rdAccountNumber: { type: String },
@@ -91,88 +87,119 @@ const coustomerSchema = new Schema(
           enum: ["active", "closed", "matured"],
           default: "active",
         },
-rdCloseDate:{type:Date},
+        rdCloseDate: { type: Date },
 
-        // lakhapti
-        lakhpatiYojanaAccountNumber: { type: String },
-        lakhpatiYojanaOpeningDate: { type: Date },
-        lakhpatiYojanaMaturityDate: { type: Date },
-        lakhpatiYojanaTenure: { type: String },
-        lakhpatiYojanaTenureType: {
-          type: String,
-          enum: ["month", "year", "week"],
-        },
-        lakhpatiYojanaInterestRate: { type: String },
-        lakhpatiYojanaInstallAmount: { type: String },
-        lakhpatiYojanaTotalInstallments: { type: String },
-        lakhpatiYojanaInstallMentsFrequency: {
-          type: String,
-          enum: ["monthly", "quarterly"],
-        },
-        lakhpatiYojanaTotalDepositedAmount: { type: Number },
-        lakhpatiYojanaMaturityAmount: { type: Number },
-        lakhpatiYojanaPayoutFrequency: {
-          type: String,
-          enum: ["monthly", "quarterly", "yearly", "atMaturity"],
-        },
-        lakhpatiYojanaAccountStatus: {
-          type: String,
-          enum: ["active", "closed", "matured"],
-          default: "active",
-        },
-lakhpatiYojanaCloseDate :{type:Date},
-        // Pigmy specific fields
-        pigMyAccountNumber: { type: String },
-        pigMyOpeningDate: { type: Date },
-        pigMyMaturityDate: { type: Date },
-        pigMyInterestRate: { type: String },
-        pigMyTotalInstallMents: { type: String },
-        pigMyTotalDepositedAmount: { type: String },
-        pigmyDailyDeposit: { type: String },
-        pigmyCollectorId: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "Agent",
-        },
-        pigMyMaturityAmount: { type: String },
-        pigMyAccountStatus: {
-          type: String,
-          enum: ["active", "closed", "matured"],
-          default: "active",
-        },
+        // // lakhapti
+        // lakhpatiYojanaAccountNumber: { type: String },
+        // lakhpatiYojanaOpeningDate: { type: Date },
+        // lakhpatiYojanaMaturityDate: { type: Date },
+        // lakhpatiYojanaTenure: { type: String },
+        // lakhpatiYojanaTenureType: {
+        //   type: String,
+        //   enum: ["month", "year", "week"],
+        // },
+        // lakhpatiYojanaInterestRate: { type: String },
+        // lakhpatiYojanaInstallAmount: { type: String },
+        // lakhpatiYojanaTotalInstallments: { type: String },
+        // lakhpatiYojanaInstallMentsFrequency: {
+        //   type: String,
+        //   enum: ["monthly", "quarterly"],
+        // },
+        // lakhpatiYojanaTotalDepositedAmount: { type: Number },
+        // lakhpatiYojanaMaturityAmount: { type: Number },
+        // lakhpatiYojanaPayoutFrequency: {
+        //   type: String,
+        //   enum: ["monthly", "quarterly", "yearly", "atMaturity"],
+        // },
+        // lakhpatiYojanaAccountStatus: {
+        //   type: String,
+        //   enum: ["active", "closed", "matured"],
+        //   default: "active",
+        // },
+        // lakhpatiYojanaCloseDate: { type: Date },
+        // // Pigmy specific fields
+        // pigMyAccountNumber: { type: String },
+        // pigMyOpeningDate: { type: Date },
+        // pigMyMaturityDate: { type: Date },
+        // pigMyInterestRate: { type: String },
+        // pigMyTotalInstallMents: { type: String },
+        // pigMyTotalDepositedAmount: { type: String },
+        // pigmyDailyDeposit: { type: String },
+        // pigmyCollectorId: {
+        //   type: mongoose.Schema.Types.ObjectId,
+        //   ref: "Agent",
+        // },
+        // pigMyMaturityAmount: { type: String },
+        // pigMyAccountStatus: {
+        //   type: String,
+        //   enum: ["active", "closed", "matured"],
+        //   default: "active",
+        // },
 
-        // Loan specific fields
-        loanAccountNumber: { type: String },
-        loanOpeningDate: { type: Date },
-        loandPrincipalAmount: { type: String },
-        loanDisbursementDate: { type: Date },
-        loanOutstandingAmount :{ type: String },
-        loanEMIAmount: { type: Number },
-        loandDisbursed:{type:Boolean ,default:false},
-        loanEMIFrequency: {
-          type: String,
-          enum: ["monthly", "quarterly", "yearly"],
-        },
-        loanTotalEmiDeposited: { type: String },
-        loanInterestRate: { type: String },
-        loanType: {
-          type: String,
-          enum: ["personal", "home", "auto", "education"],
-        },
+        // // Loan specific fields
+        // loanAccountNumber: { type: String },
+        // loanOpeningDate: { type: Date },
+        // loandPrincipalAmount: { type: String },
+        // loanDisbursementDate: { type: Date },
+        // loanOutstandingAmount: { type: String },
+        // loanEMIAmount: { type: Number },
+        // loandDisbursed: { type: Boolean, default: false },
+        // loanEMIFrequency: {
+        //   type: String,
+        //   enum: ["monthly", "quarterly", "yearly"],
+        // },
+        // loanTotalEmiDeposited: { type: String },
+        // loanInterestRate: { type: String },
+        // loanType: {
+        //   type: String,
+        //   enum: ["personal", "home", "auto", "education"],
+        // },
 
-        loanStatus: {
-          type: String,
-          enum: ["active", "closed", "defaulted"],
-          default: "active",
-        },
+        // loanStatus: {
+        //   type: String,
+        //   enum: ["active", "closed", "defaulted"],
+        //   default: "active",
+        // },
 
-        loanTenure: { type: String },
-        loanTenureType: { type: String, enum: ["month", "year", "week"] },
-        loanRemainingEmis: { type: Number },
-        loanTotalEmis: { type: String },
-        loanLastEmiDate: { type: Date },
-        loanNextEmiDate: { type: Date },
+        // loanTenure: { type: String },
+        // loanTenureType: { type: String, enum: ["month", "year", "week"] },
+        // loanRemainingEmis: { type: Number },
+        // loanTotalEmis: { type: String },
+        // loanLastEmiDate: { type: Date },
+        // loanNextEmiDate: { type: Date },
       },
     ],
+
+    QrCode: {
+      type: String,
+    },
+    CustomerId: { type: String },
+
+    Mpin: { type: Number, maxlength: 4 },
+
+    password: { type: String},
+
+    NomineeDetails: {
+      name: { type: String },
+      relation: { type: String },
+      age: { type: String },
+      dob: { type: Date },
+      email: { type: String },
+      mobile: {
+        type: String,
+        match: [/^\d{10}$/, "Please enter a valid 10-digit mobile number"],
+      },
+      AadharNo: {
+        type: String,
+        minlength: 12,
+        maxlength: 12,
+        match: [/^\d{12}$/, "Aadhar number must be 12 digits"],
+      },
+      panCard: { type: String },
+      address: { type: String },
+    },
+
+    transactionPin: { type: Number, maxlength: 6 },
   },
   { timestamps: true } // ✅ Correct placement of schema options
 );

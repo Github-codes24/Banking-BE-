@@ -15,7 +15,7 @@ const ledgerSchema = new mongoose.Schema(
 
     ledgerType: {
       type: String,
-      enum: ["RD", "Lakhpati Yojna", "PigMy", "Saving Account", "FD", "Loan"],
+      enum: ["RD", "FD"],
       required: true,
     },
   },

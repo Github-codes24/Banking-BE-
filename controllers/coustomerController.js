@@ -5,7 +5,7 @@ exports.getCustomers = async (req, res) => {
   try {
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 10;
-    const { fromDate, toDate, name, contact, branch, schemeType } = req.query;
+    const { fromDate, toDate, name, contact, branch, schemeType, managerId, agentId } = req.query;
 
     const filter = {};
 
@@ -30,18 +30,24 @@ exports.getCustomers = async (req, res) => {
       filter.contact = contact;
     }
 
-    // Branch filter (match ObjectId directly)
-    if (branch) {
-      if (mongoose.Types.ObjectId.isValid(branch)) {
-        filter.branch = branch;
-      }
+    // Branch filter (ObjectId check)
+    if (branch && mongoose.Types.ObjectId.isValid(branch)) {
+      filter.branch = branch;
     }
 
     // Scheme type filter
-    if (schemeType) {
-      if (mongoose.Types.ObjectId.isValid(schemeType)) {
-        filter["schemes.type"] = schemeType;
-      }
+    if (schemeType && mongoose.Types.ObjectId.isValid(schemeType)) {
+      filter["schemes.type"] = schemeType;
+    }
+
+    // ✅ Manager filter
+    if (managerId && mongoose.Types.ObjectId.isValid(managerId)) {
+      filter.managerId = managerId;
+    }
+
+    // ✅ Agent filter
+    if (agentId && mongoose.Types.ObjectId.isValid(agentId)) {
+      filter.agentId = agentId;
     }
 
     const total = await Customer.countDocuments(filter);
@@ -69,7 +75,7 @@ exports.getCustomers = async (req, res) => {
       data: customers,
     });
   } catch (err) {
-    console.error(err);
+    console.error("Error fetching customers:", err);
     res.status(500).json({
       success: false,
       error: "Server Error",
@@ -93,22 +99,54 @@ exports.getCustomer = async (req, res) => {
 };
 
 // @desc    Create customer
+// for date formatting if needed
+
 exports.createCustomer = async (req, res) => {
   try {
-
+    // ✅ Check if agent exists
     const agent = await Agent.findById(req.body.agentId);
     if (!agent) {
       return res.status(404).json({ success: false, error: "Agent not found" });
     }
-    req.body.branch  = agent.branch
-    req.body.managerId  = agent.managerId
-const customer = await Customer.create(req.body);
+
+    // Attach branch & manager info from Agent
+    req.body.branch = agent.branch;
+    req.body.managerId = agent.managerId;
+
+    // ✅ Generate unique 8-digit CustomerId
+    const lastCustomer = await Customer.findOne().sort({ createdAt: -1 });
+    let nextCustomerNumber = 10000000; // start from 8 digits (e.g., 10000000)
+    if (lastCustomer && lastCustomer.CustomerId) {
+      const lastNum = parseInt(lastCustomer.CustomerId); // assuming stored as string of digits
+      nextCustomerNumber = lastNum + 1;
+    }
+    req.body.CustomerId = String(nextCustomerNumber).padStart(8, "0");
+
+    // ✅ Generate unique 8-digit Saving Account Number
+    const lastAccount = await Customer.findOne().sort({ createdAt: -1 });
+    let nextAccountNumber = 20000000; // start from 20000000
+    if (lastAccount && lastAccount.savingAccountNumber) {
+      const lastAccNum = parseInt(lastAccount.savingAccountNumber);
+      nextAccountNumber = lastAccNum + 1;
+    }
+    req.body.savingAccountNumber = String(nextAccountNumber).padStart(8, "0");
+
+    // Other Saving Account defaults
+    req.body.savingAccountOpeningDate = new Date();
+    req.body.savingAccountInterestRate = 4.0; // %
+    req.body.savingAccountWithdrawLimit = 25000; // monthly limit
+    req.body.savingAccountStatus = "active";
+
+    // ✅ Create Customer
+    const customer = await Customer.create(req.body);
+
     res.status(201).json({ success: true, data: customer });
   } catch (err) {
-    console.error(err);
+    console.error("Error creating customer:", err);
     res.status(500).json({ success: false, error: "Server Error" });
   }
 };
+
 
 // @desc    Update customer
 exports.updateCustomer = async (req, res) => {
@@ -120,6 +158,17 @@ exports.updateCustomer = async (req, res) => {
     if (!customer) {
       return res.status(404).json({ success: false, error: "No customer found" });
     }
+
+ // ✅ Check if agent exists
+    const agent = await Agent.findById(req.body.agentId);
+    if (!agent) {
+      return res.status(404).json({ success: false, error: "Agent not found" });
+    }
+
+    // Attach branch & manager info from Agent
+    req.body.branch = agent.branch;
+    req.body.managerId = agent.managerId;
+
     res.status(200).json({ success: true, data: customer });
   } catch (err) {
     if (err.name === "ValidationError") {

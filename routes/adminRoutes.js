@@ -4,8 +4,13 @@ const router = express.Router();
 const {
   createAdmin,
   addBanner,
+  updateBanner,
+  deleteBanner,
+  deleteLoansApplicationForm,
   getFaqs,
-  addGalleryImage,
+  deleteLegalDocs,
+  updateGalleryItem,
+  addGalleryItem,
   updateFaq,
   deleteFaq,
   loginAdmin,
@@ -13,8 +18,11 @@ const {
   addSchems,
   addLoansApplicationForm,
   addCareers,
+  deleteCareers,
+  updateCareers,
   addFaq,
   fetchAdminData,
+  addAboutUs,
 } = require("../controllers/adminController");
 const upload = require("../utils/multer");
 
@@ -23,34 +31,70 @@ router.post("/login", loginAdmin);
 
 // Banner upload
 router.post(
-  "/banners/:id",
-  upload.fields([{ name: "bannerImage", maxCount: 5 }]),
+  "/banners/add/:id",
+  upload.single("bannerImage"),
   addBanner
+);
+router.put(
+  "/banners/update/:itemId/:id",
+  upload.single("bannerImage"),
+  updateBanner
+);
+router.delete(
+  "/banners/delete/:itemId/:id",
+  // upload.single("bannerImage"),
+  deleteBanner
 );
 
 router.get("/fetchAdmin" ,fetchAdminData)
 
 // Gallery upload
 router.post(
-  "/gallery/:id",
+  "/gallery/add/:id",
   upload.fields([{ name: "galleryImage", maxCount: 5 }]),
-  addGalleryImage
+  addGalleryItem
+);
+router.put(
+  "/gallery/update/:id/:itemId",
+  upload.fields([{ name: "galleryImage", maxCount: 5 }]),
+  updateGalleryItem
 );
 
 router.post(
   "/career/:id",
-  upload.fields([{ name: "docs", maxCount: 5 }]),
+  upload.single("careerDocs"),
   addCareers
+);
+router.put(
+  "/career/:id/:itemId",
+  upload.single("careerDocs"),
+  updateCareers
+);
+router.delete(
+  "/career/:itemId",
+  // upload.single("docs"),
+  deleteCareers
 );
 router.post(
   "/loan-application/:id",
-  upload.fields([{ name: "docs", maxCount: 5 }]),
+  upload.single("docs"),
   addLoansApplicationForm
+);
+router.delete(
+  "/loan-application/:itemId",
+
+  deleteLoansApplicationForm
 );
 router.post(
   "/legal-docs/:id",
-  upload.fields([{ name: "docs", maxCount: 5 }]),
+  upload.single("legaldocs"),
   addLegalDocs
+);
+
+router.delete(
+  "/legal-docs/:itemId",
+  // upload.single("legaldocs"),
+  deleteLegalDocs
 );
 
 // faq
@@ -70,5 +114,10 @@ router.post(
   "/:adminId/schemes",
   upload.fields([{ name: "schemsImage", maxCount: 5 }]),
   addSchems
+);
+router.post(
+  "/aboutUs",
+  upload.single("aboutUsImage"),
+  addAboutUs
 );
 module.exports = router;

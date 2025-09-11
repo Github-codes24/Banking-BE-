@@ -88,107 +88,188 @@ exports.loginAdmin = async (req, res) => {
   }
 };
 
-// Add banner (upload to cloudinary)
 exports.addBanner = async (req, res) => {
+  try {
+    // const { imageUrl, type } = req.body;
+
+    const admin = await Admin.findById(req.params.id);
+    if (!admin) {
+      return res.status(404).json({ success: false, error: "Admin not found" });
+    }
+    let uploadedUrl;
+    if (req.file) {
+      const uploaded = await uploadToCloudinary(req.file.path);
+      uploadedUrl = uploaded.url;
+    }
+
+    const data = {
+      imageUrl: uploadedUrl,
+      // caption: req.body.caption || "",
+      type: req.body.type || "",
+    };
+
+    admin.banners.push(data);
+    await admin.save();
+
+    res.status(201).json({ success: true, banners: admin.banners });
+  } catch (error) {
+    console.log(error);
+    res
+      .status(500)
+      .json({ success: false, message: "Error adding banner", error });
+  }
+};
+
+exports.deleteBanner = async (req, res) => {
+  try {
+    const { itemId } = req.params;
+
+    const setting = await Admin.findOne();
+    if (!setting) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Setting not found" });
+    }
+
+    // find banner
+    const banner = setting.banners.id(itemId);
+    if (!banner) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Banner not found" });
+    }
+
+    // remove from array
+    banner.deleteOne();
+    await setting.save();
+
+    res.json({ success: true, banners: setting.banners });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ success: false, message: "Error deleting banner", error });
+  }
+};
+// Update banner
+exports.updateBanner = async (req, res) => {
+  try {
+    const { itemId, id } = req.params;
+    const { type } = req.body;
+
+    const admin = await Admin.findById(id);
+    if (!admin)
+      return res.status(404).json({ success: false, error: "Admin not found" });
+
+    const item = admin.banners.id(itemId);
+    // let uploadedUrl;
+    if (req.file) {
+      const uploaded = await uploadToCloudinary(req.file.path);
+      // uploadedUrl = uploaded.url;
+      item.imageUrl = uploaded.url;
+    }
+
+    if (type) item.type = type;
+
+    // if (category) item.category = category;
+    await admin.save();
+    res.json({ success: true, banners: admin.banners });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ success: false, message: "Error updating banner", error });
+  }
+};
+exports.addGalleryItem = async (req, res) => {
   try {
     const admin = await Admin.findById(req.params.id);
     if (!admin) {
       return res.status(404).json({ success: false, error: "Admin not found" });
     }
 
-    // Ensure bannerImages is parsed to an array
-    let bannerData = [];
-    if (typeof req.body.bannerImages === "string") {
-      try {
-        bannerData = JSON.parse(req.body.bannerImages);
-      } catch (e) {
-        return res
-          .status(400)
-          .json({ success: false, error: "Invalid bannerImages JSON" });
-      }
-    } else if (Array.isArray(req.body.bannerImages)) {
-      bannerData = req.body.bannerImages;
+    if (!req.files?.galleryImage || req.files.galleryImage.length === 0) {
+      return res
+        .status(400)
+        .json({ success: false, error: "No images uploaded" });
     }
 
-    const bannerDataWithImages = [];
-    let bannerImageIndex = 0;
+    const uploadedImagesurls = [];
+    for (const file of req.files.galleryImage) {
+      const uploaded = await uploadToCloudinary(file.path);
 
-    for (const item of bannerData) {
-      let imageUrl = item.imageUrl;
-
-      if (
-        (!imageUrl || imageUrl === "null" || imageUrl === "") &&
-        req.files?.bannerImage?.[bannerImageIndex]
-      ) {
-        const path = req.files.bannerImage[bannerImageIndex].path;
-        const uploaded = await uploadToCloudinary(path);
-        imageUrl = uploaded.url;
-        bannerImageIndex++;
-      }
-
-      bannerDataWithImages.push({
-        isActive: item.isActive ?? true,
-        imageUrl,
-      });
+      uploadedImagesurls.push(uploaded.url);
     }
+    const data = {
+      imageUrls: uploadedImagesurls,
+      caption: req.body.caption || "",
+      category: req.body.category || "",
+    };
 
-    admin.banners = bannerDataWithImages;
+    // Push new items instead of replacing
+    admin.gallery.push(data);
 
     await admin.save();
-    res.status(200).json({ success: true, data: admin.banners });
+    res.status(200).json({ success: true, data: admin.gallery });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ success: false, error: err.message });
   }
 };
 
-// Add gallery image (upload to cloudinary)
-exports.addGalleryImage = async (req, res) => {
+exports.updateGalleryItem = async (req, res) => {
   try {
-    const admin = await Admin.findById(req.params.id);
+    const { id, itemId } = req.params; // adminId + gallery itemId
+    const { caption, category } = req.body;
+    let existingImgUrls = [];
+
+    console.log(req.body.exstingImgUrls, "exstingImgUrls");
+
+    if (req.body.exstingImgUrls) {
+      try {
+        // If frontend sends as stringified JSON array → '["url1","url2"]'
+        if (typeof req.body.exstingImgUrls === "string") {
+          existingImgUrls = JSON.parse(req.body.exstingImgUrls);
+        }
+        // If frontend sends as already-parsed array → ["url1","url2"]
+        else if (Array.isArray(req.body.exstingImgUrls)) {
+          existingImgUrls = req.body.exstingImgUrls;
+        }
+      } catch (err) {
+        console.error("Invalid exstingImgUrls format:", err.message);
+        existingImgUrls = [];
+      }
+    }
+
+    const admin = await Admin.findById(id);
     if (!admin)
       return res.status(404).json({ success: false, error: "Admin not found" });
 
-    // const galleryData = req.body.galleryImages || "[]";
+    const item = admin.gallery.id(itemId);
+    console.log(item, "item");
+    if (!item)
+      return res
+        .status(404)
+        .json({ success: false, error: "Gallery item not found" });
 
-    let galleryData = [];
-    if (typeof req.body.galleryImages === "string") {
-      try {
-        galleryData = JSON.parse(req.body.galleryImages);
-      } catch (e) {
-        return res
-          .status(400)
-          .json({ success: false, error: "Invalid bannerImages JSON" });
-      }
-    } else if (Array.isArray(req.body.galleryImages)) {
-      galleryData = req.body.galleryImages;
+    // Update fields
+    if (caption) item.caption = caption;
+    if (category) item.category = category;
+
+    // Handle image URLs - start with existing URLs from request body
+    let updatedImgUrls = [...existingImgUrls];
+    console.log(updatedImgUrls, "updatedImgUrls1");
+    // const uploadedImagesurls = [];
+    for (const file of req.files.galleryImage) {
+      const uploaded = await uploadToCloudinary(file.path);
+      console.log(uploaded.url);
+      updatedImgUrls.push(uploaded.url);
     }
-
-    const galleryDataWithImages = [];
-    let galleryImageIndex = 0;
-    for (const item of galleryData) {
-      let imageUrl = item.imageUrl;
-
-      if (
-        (!imageUrl || imageUrl === "null" || imageUrl === "") &&
-        req.files?.galleryImage?.[galleryImageIndex]
-      ) {
-        const path = req.files.galleryImage[galleryImageIndex].path;
-        const uploaded = await uploadToCloudinary(path);
-        imageUrl = uploaded.url;
-        galleryImageIndex++;
-      }
-
-      galleryDataWithImages.push({
-        category: item.category,
-        imageUrl,
-        caption: item.caption,
-      });
-    }
-
-    admin.gallery = galleryDataWithImages;
-
+    console.log(updatedImgUrls, "updatedImgUrls");
+    console.log(req.files.galleryImage, "req.files.galleryImage");
+    // Update the item's image URLs
+    item.imageUrls = updatedImgUrls;
+    console.log(item, "item");
     await admin.save();
-    res.status(200).json({ success: true, data: admin.gallery });
+    res.status(200).json({ success: true, data: item });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -201,51 +282,91 @@ exports.addCareers = async (req, res) => {
       return res.status(404).json({ success: false, error: "Admin not found" });
 
     // const careerData = req.body.careerData || "[]";
-
-    let careerData = [];
-    if (typeof req.body.careerData === "string") {
-      try {
-        careerData = JSON.parse(req.body.careerData);
-      } catch (e) {
-        return res
-          .status(400)
-          .json({ success: false, error: "Invalid bannerImages JSON" });
-      }
-    } else if (Array.isArray(req.body.careerData)) {
-      careerData = req.body.careerData;
+    console.log(req.file, "file");
+    let uploadedUrl;
+    if (req.file) {
+      const uploaded = await uploadToCloudinary(req.file.path);
+      uploadedUrl = uploaded.url;
     }
+    const data = {
+      title: req.body.title,
+      docs: uploadedUrl,
+      email: req.body.email,
+      contactPerson: req.body.contactPerson,
+      location: req.body.location,
+    };
 
-    const careerDataWithImages = [];
-    let careerDocsIndex = 0;
-    for (const item of careerData) {
-      let docs = item.docs;
-
-      if (
-        (!docs || docs === "null" || docs === "") &&
-        req.files?.docs?.[careerDocsIndex]
-      ) {
-        const path = req.files.docs[careerDocsIndex].path;
-        const uploaded = await uploadToCloudinary(path);
-        docs = uploaded.url;
-        careerDocsIndex++;
-      }
-
-      careerDataWithImages.push({
-        title: item.title,
-        docs,
-        email: item.email,
-
-        contactPerson: item.contactPerson,
-        location: item.location,
-      });
-    }
-
-    admin.careers = careerDataWithImages;
-
+    admin.careers.push(data);
     await admin.save();
     res.status(200).json({ success: true, data: admin.careers });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
+  }
+};
+exports.updateCareers = async (req, res) => {
+  try {
+    const admin = await Admin.findById(req.params.id);
+    if (!admin)
+      return res.status(404).json({ success: false, error: "Admin not found" });
+
+    // const careerData = req.body.careerData || "[]";
+
+    const career = admin.careers.id(req.params.itemId);
+    if (!career) {
+      return res
+        .status(404)
+        .json({ success: false, message: "career not found" });
+    }
+
+    let uploadedUrl;
+    if (req.file) {
+      const uploaded = await uploadToCloudinary(req.file.path);
+      uploadedUrl = uploaded.url;
+    }
+
+      career.title=req.body.title,
+      career.docs=uploadedUrl || career.docs,
+      career.email=req.body.email,
+      career.contactPerson=req.body.contactPerson,
+      career.location= req.body.location,
+
+
+    // admin.save()
+    await admin.save();
+    res.status(200).json({ success: true, data: admin.careers });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+exports.deleteCareers = async (req, res) => {
+  try {
+    const { itemId } = req.params;
+
+    const setting = await Admin.findOne();
+    if (!setting) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Setting not found" });
+    }
+
+    // find banner
+    const career = setting.careers.id(itemId);
+    if (!career) {
+      return res
+        .status(404)
+        .json({ success: false, message: "career not found" });
+    }
+
+    // remove from array
+    career.deleteOne();
+    await setting.save();
+
+    res.json({ success: true, careers: setting.careers });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ success: false, message: "Error deleting banner", error });
   }
 };
 
@@ -255,48 +376,54 @@ exports.addLoansApplicationForm = async (req, res) => {
     if (!admin)
       return res.status(404).json({ success: false, error: "Admin not found" });
 
-    // const loanApplicationFormData = req.body.loanData || "[]";
-
-    let loanApplicationFormData = [];
-    if (typeof req.body.loanData === "string") {
-      try {
-        loanApplicationFormData = JSON.parse(req.body.loanData);
-      } catch (e) {
-        return res
-          .status(400)
-          .json({ success: false, error: "Invalid bannerImages JSON" });
-      }
-    } else if (Array.isArray(req.body.loanData)) {
-      loanApplicationFormData = req.body.loanData;
+    let uploadedUrl;
+    if (req.file) {
+      const uploaded = await uploadToCloudinary(req.file.path);
+      uploadedUrl = uploaded.url;
     }
 
-    const loanDataWithImages = [];
-    let loanDocsIndex = 0;
-    for (const item of loanApplicationFormData) {
-      let docs = item.docs;
+    const data = {
+      docs: uploadedUrl,
+      // caption: req.body.caption || "",
+      title: req.body.title || "",
+    };
 
-      if (
-        (!docs || docs === "null" || docs === "") &&
-        req.files?.docs?.[loanDocsIndex]
-      ) {
-        const path = req.files.docs[loanDocsIndex].path;
-        const uploaded = await uploadToCloudinary(path);
-        docs = uploaded.url;
-        loanDocsIndex++;
-      }
-
-      loanDataWithImages.push({
-        title: item.title,
-        docs,
-      });
-    }
-
-    admin.loanApplication = loanDataWithImages;
-
+    admin.loanApplication.push(data);
     await admin.save();
     res.status(200).json({ success: true, data: admin.loanApplication });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+exports.deleteLoansApplicationForm = async (req, res) => {
+  try {
+    const { itemId } = req.params;
+
+    const setting = await Admin.findOne();
+    if (!setting) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Setting not found" });
+    }
+
+    // find banner
+    const loanApplication = setting.loanApplication.id(itemId);
+    if (!loanApplication) {
+      return res
+        .status(404)
+        .json({ success: false, message: "loanApplication not found" });
+    }
+
+    // remove from array
+    loanApplication.deleteOne();
+    await setting.save();
+
+    res.json({ success: true, banners: setting.loanApplication });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ success: false, message: "Error deleting banner", error });
   }
 };
 
@@ -306,48 +433,55 @@ exports.addLegalDocs = async (req, res) => {
     if (!admin)
       return res.status(404).json({ success: false, error: "Admin not found" });
 
-    // const legalDocsData = req.body.legalData || "[]";
-
-    let legalDocsData = [];
-    if (typeof req.body.legalData === "string") {
-      try {
-        legalDocsData = JSON.parse(req.body.legalData);
-      } catch (e) {
-        return res
-          .status(400)
-          .json({ success: false, error: "Invalid bannerImages JSON" });
-      }
-    } else if (Array.isArray(req.body.legalData)) {
-      legalDocsData = req.body.legalData;
+    let uploadedUrl;
+    if (req.file) {
+      const uploaded = await uploadToCloudinary(req.file.path);
+      uploadedUrl = uploaded.url;
     }
 
-    const legalDataWithImages = [];
-    let legalDocsIndex = 0;
-    for (const item of legalDocsData) {
-      let docs = item.docs;
+    const data = {
+      docs: uploadedUrl,
+      // caption: req.body.caption || "",
+      title: req.body.title || "",
+    };
 
-      if (
-        (!docs || docs === "null" || docs === "") &&
-        req.files?.docs?.[legalDocsIndex]
-      ) {
-        const path = req.files.docs[legalDocsIndex].path;
-        const uploaded = await uploadToCloudinary(path);
-        docs = uploaded.url;
-        legalDocsIndex++;
-      }
-
-      legalDataWithImages.push({
-        title: item.title,
-        docs,
-      });
-    }
-
-    admin.legalDocs = legalDataWithImages;
+    admin.legalDocs.push(data);
 
     await admin.save();
     res.status(200).json({ success: true, data: admin.legalDocs });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+exports.deleteLegalDocs = async (req, res) => {
+  try {
+    const { itemId } = req.params;
+
+    const setting = await Admin.findOne();
+    if (!setting) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Setting not found" });
+    }
+
+    // find banner
+    const LegalDocs = setting.legalDocs.id(itemId);
+    if (!LegalDocs) {
+      return res
+        .status(404)
+        .json({ success: false, message: "LegalDocs not found" });
+    }
+
+    // remove from array
+    LegalDocs.deleteOne();
+    await setting.save();
+
+    res.json({ success: true, docs: setting.legalDocs });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ success: false, message: "Error deleting banner", error });
   }
 };
 
@@ -519,6 +653,57 @@ exports.fetchAdminData = async (req, res) => {
     });
   } catch (err) {
     console.log(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+exports.addAboutUs = async (req, res) => {
+  try {
+    const { title, desc, vision, values } = req.body;
+
+    // uploaded file from multer-cloudinary
+    const imageUrl = req.file ? req.file.path : null;
+    let uploadedImage = "";
+
+    if (imageUrl) {
+      const path = imageUrl;
+      const uploaded = await uploadToCloudinary(path);
+      uploadedImage = uploaded.url;
+    }
+
+    let valuesArray = [];
+    if (values) {
+      if (Array.isArray(values)) {
+        valuesArray = values; // already array
+      } else {
+        valuesArray = values.split(",").map((v) => v.trim());
+      }
+    }
+
+    let admin = await Admin.findOne();
+    if (!admin) {
+      return res.status(404).json({
+        success: false,
+        message: "Admin not found. Please create an admin first.",
+      });
+    }
+
+    admin.aboutsUs = {
+      title,
+      desc,
+      vision,
+      values: valuesArray,
+      imageUrl: uploadedImage,
+    };
+    await admin.save();
+
+    res.status(200).json({
+      success: true,
+      message: "About Us added successfully",
+      data: admin.aboutsUs,
+    });
+  } catch (err) {
+    console.error("Error in addAboutUs:", err);
     res.status(500).json({ success: false, error: err.message });
   }
 };

@@ -148,6 +148,14 @@ exports.updateAgent = async (req, res) => {
       req.body.password = await bcrypt.hash(req.body.password, salt);
     }
 
+     const managerId = req.body.managerId;
+    const manager =await Manager.findById(managerId);
+     if (!manager) {
+      return res.status(404).json({ success: false, error: "manager not found" });
+    }
+    console.log(manager,"manager");
+    req.body.branch = manager.branch;
+
     const agent = await Agent.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true,

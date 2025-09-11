@@ -28,13 +28,13 @@ const agentSchema = new Schema(
     },
 
     password: { type: String },
- resetPasswordOtp: { type: String },
+    resetPasswordOtp: { type: String },
     resetPasswordOtpExpires: { type: Date },
     otpVerified: { type: Boolean, default: false },
-    managerId: { type: Schema.Types.ObjectId  ,ref:"Manager"},
+    managerId: { type: Schema.Types.ObjectId, ref: "Manager" },
     branch: { type: mongoose.Schema.Types.ObjectId, ref: "Branch" },
     isActive: { type: Boolean, default: true },
-    bank:{type:String,default:"Maa Anusaya Urban"}
+    bank: { type: String, default: "Maa Anusaya Urban" },
   },
   { timestamps: true } // ✅ Correct placement of schema options
 );

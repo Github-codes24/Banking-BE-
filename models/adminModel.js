@@ -10,12 +10,13 @@ const adminSchema = new mongoose.Schema(
       {
         imageUrl: { type: String },
         isActive: { type: Boolean, default: true },
+        type:{type: String }
       },
     ],
 
     gallery: [
       {
-        imageUrl: { type: String },
+        imageUrls: [String],
         caption: { type: String, trim: true },
         category: { type: String, trim: true }, // e.g. "events", "products"
       },
@@ -44,20 +45,28 @@ const adminSchema = new mongoose.Schema(
         docs: { type: String },
       },
     ],
-    faq:[
+    faq: [
       {
         question: { type: String },
 
         answer: { type: String },
       },
-    ]
-    ,schemes:[
+    ],
+    schemes: [
       {
-        name:{type:String},
-        desc:{type:String},
-        pdf:{type:String},
-      }
-    ]
+        name: { type: String },
+        desc: { type: String },
+        pdf: { type: String },
+      },
+    ],
+   aboutsUs: {
+  title: { type: String },
+  desc: { type: String },
+  imageUrl: { type: String },
+  vision: { type: String },        // ✅ Single text
+  values: [{ type: String }],      // ✅ Array of strings
+},
+
   },
   { timestamps: true }
 );
