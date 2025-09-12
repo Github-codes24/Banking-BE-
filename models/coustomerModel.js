@@ -35,13 +35,14 @@ const coustomerSchema = new Schema(
       enum: ["active", "closed"],
       default: "active",
     },
-    savingAccountBalance: { type: String },
+    savingAccountBalance: { type: String , default: "0"},
 
     schemes: [
       {
         type: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "Ledger",
+          type: String,
+          enum:["FD" ,"RD"]
+
         },
 
         // FD specific fields
@@ -50,13 +51,14 @@ const coustomerSchema = new Schema(
         fdDepositAmount: { type: String },
         fdInterestRate: { type: String },
         fdTenure: { type: String },
-        fdTenureType: { type: String, enum: ["month", "year"] },
+        fdTenureType: { type: String, enum: ["month", "day"] },
         fdMaturityDate: { type: Date },
         fdMaturityAmount: { type: String },
-        fdPayoutFrequency: {
-          type: String,
-          enum: ["monthly", "quarterly", "yearly", "atMaturity"],
-        },
+        maturityInstruction: { type: String },
+        // fdPayoutFrequency: {
+        //   type: String,
+        //   enum: ["monthly", "quarterly", "yearly", "atMaturity"],
+        // },
         fdAccountStatus: {
           type: String,
           enum: ["active", "closed", "matured"],
@@ -175,9 +177,9 @@ const coustomerSchema = new Schema(
     },
     CustomerId: { type: String },
 
-    Mpin: { type: Number, maxlength: 4 },
+    Mpin: { type: String},
 
-    password: { type: String },
+    password: { type: String ,required:true},
 
     NomineeDetails: {
       name: { type: String },
@@ -200,6 +202,9 @@ const coustomerSchema = new Schema(
     },
 
     transactionPin: { type: Number, maxlength: 6 },
+    otp: String,
+  otpExpiry: Date,
+  isOtpVerified: { type: Boolean, default: false }
   },
   { timestamps: true } // ✅ Correct placement of schema options
 );

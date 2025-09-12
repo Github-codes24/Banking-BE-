@@ -4,6 +4,12 @@ const {
   deleteCustomer,
   updateCustomer,
   createCustomer,
+  loginCustomerByCoustomerId,
+  loginCustomerByMpin,
+  sendOtp,
+  verifyOtp,
+  createMpin,
+  resetPassword
 } = require("../controllers/coustomerController");
 
 const router = require("express").Router();
@@ -15,5 +21,14 @@ router.get("/:id", getCustomer);
 router.post("/", createCustomer);
 router.put("/:id", updateCustomer);
 router.delete("/:id", deleteCustomer);
+
+
+// coustoome app
+router.post("/login/byCoustomerId", loginCustomerByCoustomerId);
+router.post("/login/ByMpin", loginCustomerByMpin);
+router.post("/sendOtp", sendOtp);
+router.post("/verifyOtp", verifyOtp);
+router.post("/createMpin", createMpin);
+router.post("/resetPassword", resetPassword);
 
 module.exports = router;
