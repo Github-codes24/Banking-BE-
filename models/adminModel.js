@@ -10,7 +10,7 @@ const adminSchema = new mongoose.Schema(
       {
         imageUrl: { type: String },
         isActive: { type: Boolean, default: true },
-        type:{type: String }
+        type: { type: String },
       },
     ],
 
@@ -55,18 +55,23 @@ const adminSchema = new mongoose.Schema(
     schemes: [
       {
         name: { type: String },
+        logo: { type: String },
         desc: { type: String },
         pdf: { type: String },
       },
     ],
-   aboutsUs: {
-  title: { type: String },
-  desc: { type: String },
-  imageUrl: { type: String },
-  vision: { type: String },        // ✅ Single text
-  values: [{ type: String }],      // ✅ Array of strings
-},
+    aboutsUs: {
+      title: { type: String },
+      desc: { type: String },
+      imageUrl: { type: String },
+      vision: { type: String }, // ✅ Single text
+      values: [{ type: String }],
 
+     // ✅ Array of strings
+    },
+     resetPasswordOtp: { type: String },
+      resetPasswordOtpExpires: { type: Date },
+      otpVerified: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

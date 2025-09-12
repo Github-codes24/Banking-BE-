@@ -120,6 +120,20 @@ exports.addBanner = async (req, res) => {
   }
 };
 
+exports.getBannerItem = async (req, res) => {
+  try {
+    const { itemId } = req.params; // adminId + gallery itemId
+    const admin = await Admin.findOne();
+    if (!admin) {
+      return res.status(404).json({ success: false, error: "Admin not found" });
+    }
+    const item = admin.banners.id(itemId);
+    res.status(200).json({ success: true, data: item });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
 exports.deleteBanner = async (req, res) => {
   try {
     const { itemId } = req.params;
@@ -211,6 +225,20 @@ exports.addGalleryItem = async (req, res) => {
     res.status(200).json({ success: true, data: admin.gallery });
   } catch (err) {
     console.error(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+exports.getGalleryItem = async (req, res) => {
+  try {
+    const { itemId } = req.params; // adminId + gallery itemId
+    const admin = await Admin.findOne();
+    if (!admin) {
+      return res.status(404).json({ success: false, error: "Admin not found" });
+    }
+    const item = admin.gallery.id(itemId);
+    res.status(200).json({ success: true, data: item });
+  } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 };
@@ -324,16 +352,28 @@ exports.updateCareers = async (req, res) => {
       uploadedUrl = uploaded.url;
     }
 
-      career.title=req.body.title,
-      career.docs=uploadedUrl || career.docs,
-      career.email=req.body.email,
-      career.contactPerson=req.body.contactPerson,
-      career.location= req.body.location,
-
-
-    // admin.save()
-    await admin.save();
+    (career.title = req.body.title),
+      (career.docs = uploadedUrl || career.docs),
+      (career.email = req.body.email),
+      (career.contactPerson = req.body.contactPerson),
+      (career.location = req.body.location),
+      // admin.save()
+      await admin.save();
     res.status(200).json({ success: true, data: admin.careers });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+exports.getCareerItem = async (req, res) => {
+  try {
+    const { itemId } = req.params; // adminId + gallery itemId
+    const admin = await Admin.findOne();
+    if (!admin) {
+      return res.status(404).json({ success: false, error: "Admin not found" });
+    }
+    const item = admin.careers.id(itemId);
+    res.status(200).json({ success: true, data: item });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -396,6 +436,20 @@ exports.addLoansApplicationForm = async (req, res) => {
   }
 };
 
+exports.getloanItem = async (req, res) => {
+  try {
+    const { itemId } = req.params; // adminId + gallery itemId
+    const admin = await Admin.findOne();
+    if (!admin) {
+      return res.status(404).json({ success: false, error: "Admin not found" });
+    }
+    const item = admin.loanApplication.id(itemId);
+    res.status(200).json({ success: true, data: item });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
 exports.deleteLoansApplicationForm = async (req, res) => {
   try {
     const { itemId } = req.params;
@@ -449,6 +503,20 @@ exports.addLegalDocs = async (req, res) => {
 
     await admin.save();
     res.status(200).json({ success: true, data: admin.legalDocs });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+exports.getlegalItem = async (req, res) => {
+  try {
+    const { itemId } = req.params; // adminId + gallery itemId
+    const admin = await Admin.findOne();
+    if (!admin) {
+      return res.status(404).json({ success: false, error: "Admin not found" });
+    }
+    const item = admin.legalDocs.id(itemId);
+    res.status(200).json({ success: true, data: item });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -580,50 +648,34 @@ exports.deleteFaq = async (req, res) => {
 // schems
 exports.addSchems = async (req, res) => {
   try {
-    const admin = await Admin.findById(req.params.adminId);
+    const admin = await Admin.findOne();
     if (!admin) {
       return res.status(404).json({ success: false, error: "Admin not found" });
     }
 
-    console.log("req.body.schemsImages", req.body.schemsImages);
-    let schemsData = [];
+    let logoUrl = "";
+    let pdfUrl = "";
 
-    if (typeof req.body.schemsImages === "string") {
-      try {
-        schemsData = JSON.parse(req.body.schemsImages);
-      } catch (e) {
-        return res
-          .status(400)
-          .json({ success: false, error: "Invalid schemsImages JSON" });
-      }
-    } else if (Array.isArray(req.body.schemsImages)) {
-      schemsData = req.body.schemsImages;
+    // Upload logo if exists
+    if (req.files && req.files["logo"]) {
+      const uploadedLogo = await uploadToCloudinary(req.files["logo"][0].path);
+      logoUrl = uploadedLogo.url;
     }
 
-    const schemsDataWithImages = [];
-    let schemsImageIndex = 0;
-
-    for (const item of schemsData) {
-      let imageUrl = item.imageUrl;
-
-      if (
-        (!imageUrl || imageUrl === "null" || imageUrl === "") &&
-        req.files?.schemsImage?.[schemsImageIndex]
-      ) {
-        const path = req.files.schemsImage[schemsImageIndex].path;
-        const uploaded = await uploadToCloudinary(path);
-        imageUrl = uploaded.url;
-        schemsImageIndex++;
-      }
-
-      schemsDataWithImages.push({
-        name: item.name || "",
-        desc: item.desc,
-        pdf: imageUrl,
-      });
+    // Upload pdf if exists
+    if (req.files && req.files["pdf"]) {
+      const uploadedPdf = await uploadToCloudinary(req.files["pdf"][0].path);
+      pdfUrl = uploadedPdf.url;
     }
 
-    admin.schemes = schemsDataWithImages;
+    const data = {
+      name: req.body.name || "",
+      desc: req.body.desc || "",
+      logo: logoUrl || "",
+      pdf: pdfUrl || "",
+    };
+
+    admin.schemes.push(data);
     await admin.save();
 
     res.status(200).json({
@@ -632,8 +684,87 @@ exports.addSchems = async (req, res) => {
       data: admin.schemes,
     });
   } catch (err) {
-    console.log(err);
+    console.error("Add Schemes Error:", err);
     res.status(500).json({ success: false, error: err.message });
+  }
+};
+exports.updateSchems = async (req, res) => {
+  try {
+    const { itemId } = req.params;
+    const admin = await Admin.findOne();
+
+    if (!admin) {
+      return res.status(404).json({ success: false, error: "Admin not found" });
+    }
+
+    const scheme = admin.schemes.id(itemId);
+    if (!scheme) {
+      return res.status(404).json({ success: false, message: "Scheme not found" });
+    }
+
+    let logoUrl = null;
+    let pdfUrl = null;
+
+    // Upload logo if exists
+    if (req.files && req.files["logo"]) {
+      const uploadedLogo = await uploadToCloudinary(req.files["logo"][0].path);
+      logoUrl = uploadedLogo.url;
+    }
+
+    // Upload pdf if exists
+    if (req.files && req.files["pdf"]) {
+      const uploadedPdf = await uploadToCloudinary(req.files["pdf"][0].path);
+      pdfUrl = uploadedPdf.url;
+    }
+
+    // Update fields (keep old if not provided)
+    scheme.name = req.body.name || scheme.name;
+    scheme.desc = req.body.desc || scheme.desc;
+    scheme.logo = logoUrl || scheme.logo;
+    scheme.pdf = pdfUrl || scheme.pdf;
+
+    await admin.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Scheme updated successfully",
+      data: scheme, // return updated scheme instead of all schemes
+    });
+  } catch (err) {
+    console.error("Update Schemes Error:", err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+
+exports.deleteSchems = async (req, res) => {
+  try {
+    const { itemId } = req.params;
+
+    const setting = await Admin.findOne();
+    if (!setting) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Setting not found" });
+    }
+
+    // find banner
+    const schemes = setting.schemes.id(itemId);
+    if (!schemes) {
+      return res
+        .status(404)
+        .json({ success: false, message: "schemes not found" });
+    }
+
+    // remove from array
+    schemes.deleteOne();
+    await setting.save();
+
+    res.json({ success: true, data: setting.schemes });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ success: false, message: "Error deleting schemes", error });
   }
 };
 
@@ -661,20 +792,20 @@ exports.addAboutUs = async (req, res) => {
   try {
     const { title, desc, vision, values } = req.body;
 
-    // uploaded file from multer-cloudinary
+    // uploaded file from multer
     const imageUrl = req.file ? req.file.path : null;
     let uploadedImage = "";
 
     if (imageUrl) {
-      const path = imageUrl;
-      const uploaded = await uploadToCloudinary(path);
+      const uploaded = await uploadToCloudinary(imageUrl);
       uploadedImage = uploaded.url;
     }
 
+    // Ensure values is always an array
     let valuesArray = [];
     if (values) {
       if (Array.isArray(values)) {
-        valuesArray = values; // already array
+        valuesArray = values;
       } else {
         valuesArray = values.split(",").map((v) => v.trim());
       }
@@ -695,6 +826,7 @@ exports.addAboutUs = async (req, res) => {
       values: valuesArray,
       imageUrl: uploadedImage,
     };
+
     await admin.save();
 
     res.status(200).json({
@@ -707,3 +839,193 @@ exports.addAboutUs = async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 };
+
+
+exports.getAdmin = async (req, res) => {
+  try {
+    let admin = await Admin.findOne();
+    if (!admin) {
+      return res.status(404).json({
+        success: false,
+        message: "Admin not found. Please create an admin first.",
+      });
+    }
+    res.status(200).json({
+      success: true,
+
+      data: admin,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+exports.adminPasswordChange = async (req, res) => {
+  try {
+    const { adminId, oldPassword, newPassword } = req.body;
+
+    if (!adminId || !oldPassword || !newPassword) {
+      return res
+        .status(400)
+        .json({ success: false, message: "All fields are required" });
+    }
+
+    // Find admin
+    const admin = await Admin.findById(adminId);
+    if (!admin) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Admin not found" });
+    }
+
+    // Check old password
+    const isMatch = await bcrypt.compare(oldPassword, admin.password);
+    if (!isMatch) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Old password is incorrect" });
+    }
+
+    // Hash new password
+    const salt = await bcrypt.genSalt(10);
+    admin.password = await bcrypt.hash(newPassword, salt);
+
+    await admin.save();
+
+    return res
+      .status(200)
+      .json({ success: true, message: "Password changed successfully" });
+  } catch (err) {
+    console.error("Password change error:", err);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+
+
+exports.updatePasswordOtp = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    // 1. Find manager by email
+    const admin = await Admin.findOne({ email });
+    if (!admin) {
+      return res.status(404).json({
+        success: false,
+        error: "admin not found",
+      });
+    }
+
+    // 2. Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // 3. Save OTP & expiry in DB
+    admin.resetPasswordOtp = otp;
+    admin.resetPasswordOtpExpires = Date.now() + 5 * 60 * 1000; // 5 minutes
+    await admin.save();
+
+    // 4. Send OTP email
+    // await sendOtpEmail(email, otp);
+
+    // 5. Respond success
+    res.status(200).json({
+      success: true,
+      otp:otp, // for testing, remove in production
+      message: "OTP sent to email",
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      success: false,
+      error: "Server Error",
+    });
+  }
+};
+
+exports.verifyOtp = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    // Find manager
+    const admin = await Admin.findOne({ email });
+    if (!admin) {
+      return res.status(404).json({
+        success: false,
+        error: "admin not found",
+      });
+    }
+
+    // Check OTP & expiry
+    if (
+      admin.resetPasswordOtp !== otp ||
+      !admin.resetPasswordOtpExpires ||
+      admin.resetPasswordOtpExpires < Date.now()
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid or expired OTP",
+      });
+    }
+
+    // Mark OTP as verified
+    admin.otpVerified = true;
+    await admin.save();
+
+    res.status(200).json({
+      success: true,
+      message: "OTP verified successfully",
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      success: false,
+      error: "Server Error",
+    });
+  }
+};
+
+exports.changePassword = async (req, res) => {
+  try {
+    const { email, newPassword } = req.body;
+
+    // Find manager
+    const admin = await Admin.findOne({ email }).select("+password");
+    if (!admin) {
+      return res.status(404).json({
+        success: false,
+        error: "admin not found",
+      });
+    }
+
+    // Check if OTP was verified
+    if (!admin.otpVerified) {
+      return res.status(400).json({
+        success: false,
+        error: "OTP verification required",
+      });
+    }
+
+    // Hash new password
+    const salt = await bcrypt.genSalt(10);
+    admin.password = await bcrypt.hash(newPassword, salt);
+
+    // Clear OTP data & flag
+    admin.resetPasswordOtp = undefined;
+    admin.resetPasswordOtpExpires = undefined;
+    admin.otpVerified = undefined;
+
+    await admin.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Password updated successfully",
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      success: false,
+      error: "Server Error",
+    });
+  }
+};
+

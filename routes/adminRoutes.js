@@ -3,8 +3,14 @@ const router = express.Router();
 
 const {
   createAdmin,
+  getlegalItem,
+  getGalleryItem,
+  deleteSchems,
+  updateSchems,
+  getCareerItem,
   addBanner,
   updateBanner,
+  getBannerItem,
   deleteBanner,
   deleteLoansApplicationForm,
   getFaqs,
@@ -19,15 +25,31 @@ const {
   addLoansApplicationForm,
   addCareers,
   deleteCareers,
+  getloanItem,
   updateCareers,
   addFaq,
   fetchAdminData,
   addAboutUs,
+  adminPasswordChange,
+  getAdmin,
+  updatePasswordOtp,
+  verifyOtp,
+  changePassword
 } = require("../controllers/adminController");
 const upload = require("../utils/multer");
 
 router.post("/", createAdmin);
 router.post("/login", loginAdmin);
+
+// if you have exsting password
+router.post("/passwordChange", adminPasswordChange);
+
+router.get("/get", getAdmin);
+
+router.post("/updatePasswordOtp", updatePasswordOtp);
+router.post("/verifyOtp", verifyOtp);
+// aftre forgot password
+router.post("/changePassword", changePassword);
 
 // Banner upload
 router.post(
@@ -39,6 +61,10 @@ router.put(
   "/banners/update/:itemId/:id",
   upload.single("bannerImage"),
   updateBanner
+);
+router.get(
+  "/banners/get/:itemId",
+getBannerItem
 );
 router.delete(
   "/banners/delete/:itemId/:id",
@@ -59,6 +85,11 @@ router.put(
   upload.fields([{ name: "galleryImage", maxCount: 5 }]),
   updateGalleryItem
 );
+router.get(
+  "/gallery/get/:itemId",
+
+  getGalleryItem
+);
 
 router.post(
   "/career/:id",
@@ -75,6 +106,11 @@ router.delete(
   // upload.single("docs"),
   deleteCareers
 );
+router.get(
+  "/career/get/:itemId",
+  // upload.single("docs"),
+  getCareerItem
+);
 router.post(
   "/loan-application/:id",
   upload.single("docs"),
@@ -84,6 +120,11 @@ router.delete(
   "/loan-application/:itemId",
 
   deleteLoansApplicationForm
+);
+router.get(
+  "/loan-application/get/:itemId",
+
+  getloanItem
 );
 router.post(
   "/legal-docs/:id",
@@ -95,6 +136,11 @@ router.delete(
   "/legal-docs/:itemId",
   // upload.single("legaldocs"),
   deleteLegalDocs
+);
+router.get(
+  "/legal-docs/get/:itemId",
+  // upload.single("legaldocs"),
+  getlegalItem
 );
 
 // faq
@@ -111,12 +157,28 @@ router.delete("/:adminId/faq/:faqId", deleteFaq);
 
 // schems
 router.post(
-  "/:adminId/schemes",
-  upload.fields([{ name: "schemsImage", maxCount: 5 }]),
+  "/schemes/add",
+   upload.fields([
+    { name: "logo", maxCount: 1 },
+    { name: "pdf", maxCount: 1 }
+  ]),
   addSchems
 );
+router.put(
+  "/schemes/update/:itemId",
+   upload.fields([
+    { name: "logo", maxCount: 1 },
+    { name: "pdf", maxCount: 1 }
+  ]),
+  updateSchems
+);
+router.delete(
+  "/schemes/delete/:itemId",
+  // upload.single("schemes"),
+  deleteSchems
+);
 router.post(
-  "/aboutUs",
+  "/aboutUs/add",
   upload.single("aboutUsImage"),
   addAboutUs
 );
