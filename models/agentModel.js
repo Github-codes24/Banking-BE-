@@ -8,6 +8,7 @@ const agentSchema = new Schema(
     contact: {
       type: String,
       required: true,
+      unique: true,
       match: [/^\d{10}$/, "Please enter a valid 10-digit mobile number"],
     },
 
@@ -27,11 +28,11 @@ const agentSchema = new Schema(
       match: [/^\d{10}$/, "Please enter a valid 10-digit mobile number"],
     },
 
-    password: { type: String },
+    password: { type: String ,required: true},
     resetPasswordOtp: { type: String },
     resetPasswordOtpExpires: { type: Date },
     otpVerified: { type: Boolean, default: false },
-    managerId: { type: Schema.Types.ObjectId, ref: "Manager" },
+    managerId: { type: Schema.Types.ObjectId,required:true, ref: "Manager" },
     branch: { type: mongoose.Schema.Types.ObjectId, ref: "Branch" },
     isActive: { type: Boolean, default: true },
     bank: { type: String, default: "Maa Anusaya Urban" },

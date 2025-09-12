@@ -2,6 +2,7 @@ const Agent = require("../models/agentModel");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const Manager = require("../models/managerModel");
+const Coustomer = require("../models/coustomerModel");
 // Create Agent
 exports.createAgent = async (req, res) => {
   try {
@@ -11,11 +12,13 @@ exports.createAgent = async (req, res) => {
       req.body.password = await bcrypt.hash(req.body.password, salt);
     }
     const managerId = req.body.managerId;
-    const manager =await Manager.findById(managerId);
-     if (!manager) {
-      return res.status(404).json({ success: false, error: "manager not found" });
+    const manager = await Manager.findById(managerId);
+    if (!manager) {
+      return res
+        .status(404)
+        .json({ success: false, error: "manager not found" });
     }
-    console.log(manager,"manager");
+    console.log(manager, "manager");
     req.body.branch = manager.branch;
     const agent = await Agent.create(req.body);
     res.status(201).json({ success: true, data: agent });
@@ -46,7 +49,7 @@ exports.loginAgent = async (req, res) => {
     }
 
     // Compare password
-    const isMatch = await bcrypt.compare(password, agent.password || "");
+    const isMatch = await bcrypt.compare(password, agent.password);
     if (!isMatch) {
       return res.status(401).json({
         success: false,
@@ -57,8 +60,8 @@ exports.loginAgent = async (req, res) => {
     // Generate JWT
     const token = jwt.sign(
       { id: agent._id, role: "agent" },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
+      process.env.ACCESS_TOKEN_SECRET,
+      { expiresIn: process.env.ACCESS_TOKEN_EXPIRY }
     );
 
     res.status(200).json({
@@ -148,12 +151,14 @@ exports.updateAgent = async (req, res) => {
       req.body.password = await bcrypt.hash(req.body.password, salt);
     }
 
-     const managerId = req.body.managerId;
-    const manager =await Manager.findById(managerId);
-     if (!manager) {
-      return res.status(404).json({ success: false, error: "manager not found" });
+    const managerId = req.body.managerId;
+    const manager = await Manager.findById(managerId);
+    if (!manager) {
+      return res
+        .status(404)
+        .json({ success: false, error: "manager not found" });
     }
-    console.log(manager,"manager");
+    console.log(manager, "manager");
     req.body.branch = manager.branch;
 
     const agent = await Agent.findByIdAndUpdate(req.params.id, req.body, {
@@ -173,6 +178,48 @@ exports.updateAgent = async (req, res) => {
   }
 };
 
+exports.updateAgentMinimalInfo = async (req, res) => {
+  try {
+    const { agentId } = req.params;
+
+    // Allow only minimal fields to be updated
+    const allowedUpdates = ["name", "email", "contact", "address","education","alternateNumber"];
+    const updates = {};
+
+    for (let key of allowedUpdates) {
+      if (req.body[key] !== undefined) {
+        updates[key] = req.body[key];
+      }
+    }
+
+    const agent = await Agent.findByIdAndUpdate(agentId, updates, {
+      new: true,
+      runValidators: true,
+      select: "-password", // hide password
+    });
+
+    if (!agent) {
+      return res.status(404).json({
+        success: false,
+        message: "Agent not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Agent info updated successfully",
+      data: agent,
+    });
+  } catch (err) {
+    console.error("Error in updateAgentMinimalInfo:", err);
+    res.status(400).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+
 // Delete Agent
 exports.deleteAgent = async (req, res) => {
   try {
@@ -188,5 +235,66 @@ exports.deleteAgent = async (req, res) => {
       .json({ success: true, message: "Agent deleted successfully" });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+exports.getCustomer = async (req, res) => {
+  try {
+    const { agentId } = req.params;
+    if (!agentId) {
+      return res
+        .status(400)
+        .json({ success: false, message: "agentId is required" });
+    }
+
+    // Pagination params
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    // Search filter
+    const search = req.query.search || "";
+    const searchQuery = search
+      ? {
+          $or: [
+            { name: { $regex: search, $options: "i" } },
+            { email: { $regex: search, $options: "i" } },
+            { phone: { $regex: search, $options: "i" } },
+          ],
+        }
+      : {};
+
+    // Base filter (customers under specific agent)
+    const baseFilter = { agentId };
+
+    // Combine filters
+    const finalFilter = { ...baseFilter, ...searchQuery };
+
+    // Total count
+    const total = await Coustomer.countDocuments(finalFilter);
+
+    // Fetch data
+    const customers = await Coustomer.find(finalFilter)
+      .populate("agentId", "name email") // populate agent details
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    res.status(200).json({
+      success: true,
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+      count: customers.length,
+      data: customers,
+    });
+  } catch (err) {
+    console.error("Error fetching customers:", err);
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+      error: err.message,
+    });
   }
 };

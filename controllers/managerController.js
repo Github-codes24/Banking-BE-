@@ -326,10 +326,11 @@ exports.updatePasswordOtp = async (req, res) => {
     await manager.save();
 
     // 4. Send OTP email
-    await sendOtpEmail(email, otp);
+    // await sendOtpEmail(email, otp);
 
     // 5. Respond success
     res.status(200).json({
+      otp,
       success: true,
       message: "OTP sent to email",
     });
@@ -430,22 +431,115 @@ exports.changePassword = async (req, res) => {
 };
 
 exports.getAgents = async (req, res) => {
-    console.log(req.user,"id");
   try {
+    const { managerId } = req.params;
+    if (!managerId) {
+      return res.status(400).json({
+        success: false,
+        message: "managerId is required",
+      });
+    }
 
-   const agents = await Agent.find({ managerId: req.user._id })
-  .populate('managerId', 'name email') // field name & fields to return
-  .select("-password");
+    // Pagination params
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    // Search filter
+    const search = req.query.search || "";
+    const searchQuery = search
+      ? {
+          $or: [
+            { name: { $regex: search, $options: "i" } },
+            { email: { $regex: search, $options: "i" } },
+            { phone: { $regex: search, $options: "i" } }, // if phone field exists
+          ],
+        }
+      : {};
+
+    // Base filter (agents under specific manager)
+    const baseFilter = { managerId };
+
+    // Combine filters
+    const finalFilter = { ...baseFilter, ...searchQuery };
+
+    // Count total
+    const total = await Agent.countDocuments(finalFilter);
+
+    // Fetch agents
+    const agents = await Agent.find(finalFilter)
+      .populate("managerId", "name email")
+      .select("-password")
+      .skip(skip)
+      .limit(limit)
+      .lean();
 
     res.status(200).json({
       success: true,
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+      count: agents.length,
       data: agents,
     });
   } catch (err) {
-    console.log(err)
+    console.error("Error in getAgents:", err);
     res.status(500).json({
       success: false,
-      error: "Server Error",
+      error: "Server Error: " + err.message,
     });
   }
 };
+ // adjust path to your Manager model
+
+exports.changeManagerPassword = async (req, res) => {
+  try {
+    const { managerId } = req.params; // or req.user._id if authenticated
+    const { oldPassword, newPassword } = req.body;
+
+    if (!oldPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Old password and new password are required",
+      });
+    }
+
+    // Find manager
+    const manager = await Manager.findById(managerId);
+    if (!manager) {
+      return res.status(404).json({
+        success: false,
+        message: "Manager not found",
+      });
+    }
+
+    // Check old password
+    const isMatch = await bcrypt.compare(oldPassword, manager.password);
+    if (!isMatch) {
+      return res.status(400).json({
+        success: false,
+        message: "Old password is incorrect",
+      });
+    }
+
+    // Hash new password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    manager.password = hashedPassword;
+    await manager.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Password updated successfully",
+    });
+  } catch (err) {
+    console.error("Error in changeManagerPassword:", err);
+    res.status(500).json({
+      success: false,
+      error: err.message,
+    });
+  }
+};
+

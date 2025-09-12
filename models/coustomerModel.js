@@ -177,7 +177,7 @@ const coustomerSchema = new Schema(
 
     Mpin: { type: Number, maxlength: 4 },
 
-    password: { type: String},
+    password: { type: String },
 
     NomineeDetails: {
       name: { type: String },

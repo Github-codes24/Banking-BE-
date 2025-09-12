@@ -8,5 +8,7 @@ router.get("/:id", agentController.getAgentById);
 router.put("/:id", agentController.updateAgent);
 router.delete("/:id", agentController.deleteAgent);
 router.post("/login", agentController.loginAgent);
+router.get("/getCoustomer/:agentId", agentController.getCustomer);
+router.put("/update/info/:agentId", agentController.updateAgentMinimalInfo);
 
 module.exports = router;
