@@ -8,8 +8,11 @@ const {
   loginCustomerByMpin,
   sendOtp,
   verifyOtp,
+  createFD,
   createMpin,
-  resetPassword
+  createRD,
+  resetPassword,
+  emiCalculator
 } = require("../controllers/coustomerController");
 
 const router = require("express").Router();
@@ -30,5 +33,8 @@ router.post("/sendOtp", sendOtp);
 router.post("/verifyOtp", verifyOtp);
 router.post("/createMpin", createMpin);
 router.post("/resetPassword", resetPassword);
+router.post("/createFD/:customerId", createFD);
+router.post("/createRD/:customerId", createRD);
+router.post("/emi/calculator", emiCalculator);
 
 module.exports = router;

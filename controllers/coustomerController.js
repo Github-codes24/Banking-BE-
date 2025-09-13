@@ -3,6 +3,9 @@ const Agent = require("../models/agentModel");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const otpGenerator = require("otp-generator");
+
+const moment = require("moment");
+
 // @desc    Get all customers
 exports.getCustomers = async (req, res) => {
   try {
@@ -96,7 +99,6 @@ exports.getCustomers = async (req, res) => {
   }
 };
 
-
 exports.getCustomer = async (req, res) => {
   try {
     const customer = await Customer.findById(req.params.id);
@@ -151,7 +153,9 @@ exports.createCustomer = async (req, res) => {
 
     // ✅ Hash password if provided
     if (!password) {
-      return res.status(400).json({ success: false, error: "Password is required" });
+      return res
+        .status(400)
+        .json({ success: false, error: "Password is required" });
     }
     const hashedPassword = await bcrypt.hash(password, 10);
     req.body.password = hashedPassword;
@@ -166,8 +170,6 @@ exports.createCustomer = async (req, res) => {
   }
 };
 
-
-
 exports.updateCustomer = async (req, res) => {
   try {
     const { agentId, password } = req.body;
@@ -176,7 +178,9 @@ exports.updateCustomer = async (req, res) => {
     if (agentId) {
       const agent = await Agent.findById(agentId);
       if (!agent) {
-        return res.status(404).json({ success: false, error: "Agent not found" });
+        return res
+          .status(404)
+          .json({ success: false, error: "Agent not found" });
       }
       req.body.branch = agent.branch;
       req.body.managerId = agent.managerId;
@@ -223,8 +227,6 @@ exports.deleteCustomer = async (req, res) => {
     res.status(500).json({ success: false, error: "Server Error" });
   }
 };
-
-
 
 exports.loginCustomerByCoustomerId = async (req, res) => {
   try {
@@ -342,17 +344,26 @@ exports.sendOtp = async (req, res) => {
     const { CustomerId } = req.body;
 
     if (!CustomerId) {
-      return res.status(400).json({ success: false, message: "CustomerId number is required" });
+      return res
+        .status(400)
+        .json({ success: false, message: "CustomerId number is required" });
     }
 
     // Check if customer exists
     const customer = await Customer.findOne({ CustomerId });
     if (!customer) {
-      return res.status(404).json({ success: false, message: "Customer not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Customer not found" });
     }
 
     // Generate 6-digit OTP
-    const otp = otpGenerator.generate(6, { digits: true, alphabets: false, upperCase: false, specialChars: false });
+    const otp = otpGenerator.generate(6, {
+      digits: true,
+      alphabets: false,
+      upperCase: false,
+      specialChars: false,
+    });
 
     // Save OTP with expiry
     customer.otp = otp;
@@ -363,10 +374,14 @@ exports.sendOtp = async (req, res) => {
     // Send OTP
     // await sendSms(mobile, `Your OTP is ${otp}`);
 
-    res.status(200).json({ success: true, otp, message: "OTP sent successfully" });
+    res
+      .status(200)
+      .json({ success: true, otp, message: "OTP sent successfully" });
   } catch (err) {
     console.error("Send OTP error:", err);
-    res.status(500).json({ success: false, message: "Server error while sending OTP" });
+    res
+      .status(500)
+      .json({ success: false, message: "Server error while sending OTP" });
   }
 };
 exports.verifyOtp = async (req, res) => {
@@ -375,11 +390,15 @@ exports.verifyOtp = async (req, res) => {
 
     const customer = await Customer.findOne({ CustomerId });
     if (!customer) {
-      return res.status(404).json({ success: false, message: "Customer not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Customer not found" });
     }
 
     if (customer.otp !== otp || Date.now() > customer.otpExpiry) {
-      return res.status(400).json({ success: false, message: "Invalid or expired OTP" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid or expired OTP" });
     }
 
     // Mark verified
@@ -388,10 +407,14 @@ exports.verifyOtp = async (req, res) => {
     customer.otpExpiry = undefined;
     await customer.save();
 
-    res.status(200).json({ success: true, message: "OTP verified successfully" });
+    res
+      .status(200)
+      .json({ success: true, message: "OTP verified successfully" });
   } catch (err) {
     console.error("Verify OTP error:", err);
-    res.status(500).json({ success: false, message: "Server error while verifying OTP" });
+    res
+      .status(500)
+      .json({ success: false, message: "Server error while verifying OTP" });
   }
 };
 
@@ -401,12 +424,17 @@ exports.createMpin = async (req, res) => {
 
     const customer = await Customer.findOne({ CustomerId });
     if (!customer) {
-      return res.status(404).json({ success: false, message: "Customer not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Customer not found" });
     }
 
     // Ensure OTP verified first
     if (!customer.isOtpVerified) {
-      return res.status(400).json({ success: false, message: "Please verify OTP before setting MPIN" });
+      return res.status(400).json({
+        success: false,
+        message: "Please verify OTP before setting MPIN",
+      });
     }
 
     // Hash MPIN
@@ -415,25 +443,34 @@ exports.createMpin = async (req, res) => {
     customer.isOtpVerified = false; // reset after use
     await customer.save();
 
-    res.status(200).json({ success: true, message: "MPIN created successfully" });
+    res
+      .status(200)
+      .json({ success: true, message: "MPIN created successfully" });
   } catch (err) {
     console.error("Create MPIN error:", err);
-    res.status(500).json({ success: false, message: "Server error while creating MPIN" });
+    res
+      .status(500)
+      .json({ success: false, message: "Server error while creating MPIN" });
   }
 };
 
 exports.resetPassword = async (req, res) => {
-   try {
+  try {
     const { CustomerId, newPassword } = req.body;
 
     const customer = await Customer.findOne({ CustomerId });
     if (!customer) {
-      return res.status(404).json({ success: false, message: "Customer not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Customer not found" });
     }
 
     // Ensure OTP verified first
     if (!customer.isOtpVerified) {
-      return res.status(400).json({ success: false, message: "Please verify OTP before setting password" });
+      return res.status(400).json({
+        success: false,
+        message: "Please verify OTP before setting password",
+      });
     }
 
     // Hash MPIN
@@ -442,34 +479,42 @@ exports.resetPassword = async (req, res) => {
     customer.isOtpVerified = false; // reset after use
     await customer.save();
 
-    res.status(200).json({ success: true, message: "password updated successfully" });
+    res
+      .status(200)
+      .json({ success: true, message: "password updated successfully" });
   } catch (err) {
     console.error("Create password error:", err);
-    res.status(500).json({ success: false, message: "Server error while creating password" });
+    res.status(500).json({
+      success: false,
+      message: "Server error while creating password",
+    });
   }
-}
+};
 
+// const moment = require("moment");
 
 exports.createFD = async (req, res) => {
   try {
-    const { customerId } = req.params; // pass customerId in URL
+    const { customerId } = req.params; // pass CustomerId in URL (not _id)
     const {
+      type,
       fdDepositAmount,
-      // fdInterestRate,
-      maturityInstruction,
+      savingAccountNo,
       fdTenure,
-      fdTenureType, // "month" or "year"
-      fdPayoutFrequency, // monthly, quarterly, yearly, atMaturity
+      fdTenureType, // "month", "year", or "day"
+      fdMaturityInstruction, // autoRenewal, payout, renewPrincipalOnly
     } = req.body;
 
-    // ✅ Find customer
-    const customer = await Customer.findById(customerId);
+    // ✅ Find customer by CustomerId
+    const customer = await Customer.findOne({ CustomerId: customerId });
     if (!customer) {
-      return res.status(404).json({ success: false, error: "Customer not found" });
+      return res
+        .status(404)
+        .json({ success: false, error: "Customer not found" });
     }
 
     // ✅ Generate unique FD account number
-    const fdAccountNumber = "FD" + Date.now(); // better: use sequence generator
+    const fdAccountNumber = "FD" + Date.now();
 
     // ✅ Opening Date
     const openingDate = new Date();
@@ -478,35 +523,43 @@ exports.createFD = async (req, res) => {
     let maturityDate = moment(openingDate);
     if (fdTenureType === "year") {
       maturityDate = maturityDate.add(Number(fdTenure), "years");
-    } else {
+    } else if (fdTenureType === "month") {
       maturityDate = maturityDate.add(Number(fdTenure), "months");
+    } else {
+      maturityDate = maturityDate.add(Number(fdTenure), "days");
     }
 
-    // ✅ Calculate maturity amount (Simple compound formula)
+    // ✅ Calculate maturity amount (compound annually)
     const principal = Number(fdDepositAmount);
-    const rate = Number(process.env.FD_INTREST_RATE||6) / 100;
-    const time = fdTenureType === "year" ? Number(fdTenure) : Number(fdTenure) / 12;
+    const rate = Number(process.env.FD_INTREST_RATE || 6) / 100;
+    const time =
+      fdTenureType === "year"
+        ? Number(fdTenure)
+        : fdTenureType === "month"
+        ? Number(fdTenure) / 12
+        : Number(fdTenure) / 365;
 
-    const maturityAmount = principal * Math.pow(1 + rate / 1, time); // annual compounding
+    const maturityAmount = principal * Math.pow(1 + rate, time);
 
     // ✅ Create FD object
     const fdScheme = {
-      type: "FD", // just a marker (can be Ledger ref later)
+      type,
+      savingAccountNo,
       fdAccountNumber,
       fdOpeningDate: openingDate,
-      fdDepositAmount: principal,
-      fdInterestRate:process.env.FD_INTREST_RATE||6,
+      fdPrincipalAmount: principal,
+      fdDepositAmount: 0,
+      fdInterestRate: process.env.FD_INTREST_RATE || 6,
       fdTenure,
       fdTenureType,
       fdMaturityDate: maturityDate.toDate(),
       fdMaturityAmount: maturityAmount.toFixed(2),
-      // fdPayoutFrequency,
-      maturityInstruction,
-      fdAccountStatus: "active",
+      fdMaturityInstruction,
+      fdAccountStatus: "pending",
     };
 
-    // ✅ Push to customer.schemes
-    customer.schemes.push(fdScheme);
+    // ✅ Push to fdSchemes array
+    customer.fdSchemes.push(fdScheme);
     await customer.save();
 
     res.status(201).json({
@@ -516,6 +569,124 @@ exports.createFD = async (req, res) => {
     });
   } catch (err) {
     console.error("Error creating FD:", err);
-    res.status(500).json({ success: false, error: "Server Error: " + err.message });
+    res
+      .status(500)
+      .json({ success: false, error: "Server Error: " + err.message });
   }
 };
+
+exports.createRD = async (req, res) => {
+  try {
+    const { customerId } = req.params; // pass customerId in URL
+    const { savingAccountNo, rdTenure, type, rdInstallAmount } = req.body;
+
+    // ✅ Find customer
+    const customer = await Customer.findOne({ CustomerId: customerId });
+    if (!customer) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Customer not found" });
+    }
+
+    // ✅ Generate unique RD account number
+    const rdAccountNumber = "RD" + Date.now();
+
+    // ✅ Opening Date
+    const openingDate = new Date();
+
+    // ✅ Calculate maturity date (monthly installments only for now)
+    let maturityDate = moment(openingDate).add(Number(rdTenure), "months");
+
+    // ✅ Calculate total deposited amount
+    // const totalDeposited = Number(rdInstallAmount) * Number(rdTotalInstallments);
+
+    // ✅ Calculate maturity amount (using simple compounding approx.)
+    const rate = Number(process.env.RD_INTREST_RATE || 6) / 100;
+    const timeYears = Number(rdTenure) / 12; // convert tenure in months to years
+
+    // Future Value of RD (compound monthly) formula:
+    // FV = P * [((1 + r/n)^(n*t) - 1) / (1 - (1 + r/n)^(-1))]
+    // Simplified approximation for monthly deposits:
+    const n = 12; // monthly compounding
+    const P = Number(rdInstallAmount);
+
+    const maturityAmount =
+      P *
+      ((Math.pow(1 + rate / n, n * timeYears) - 1) / (rate / n)) *
+      (1 + rate / n);
+
+    // ✅ Create RD object
+    const rdScheme = {
+      rdAccountNumber,
+      rdOpeningDate: openingDate,
+      rdMaturityDate: maturityDate.toDate(),
+      rdTenure,
+      rdTenureType: "month",
+      rdInterestRate: process.env.RD_INTREST_RATE || 6,
+      rdInstallAmount: P,
+      savingAccountNo,
+      type,
+      rdTotalDepositedInstallment:0,
+      rdInstallMentsFrequency: "monthly",
+      rdTotalDepositedtAmount: 0,
+      rdTotalInstallments: rdTenure,
+      rdMaturityAmount: maturityAmount.toFixed(2),
+      rdAccountStatus: "active",
+    };
+
+    // ✅ Push to rdSchemes array
+    customer.rdSchemes.push(rdScheme);
+    await customer.save();
+
+    res.status(201).json({
+      success: true,
+      message: "RD account created successfully",
+      data: rdScheme,
+    });
+  } catch (err) {
+    console.error("Error creating RD:", err);
+    res
+      .status(500)
+      .json({ success: false, error: "Server Error: " + err.message });
+  }
+};
+
+
+exports.emiCalculator = async(req,res)=>{
+  try {
+    const { principal, annualRate, tenureMonths } = req.body;
+
+    if (!principal || !annualRate || !tenureMonths) {
+      return res.status(400).json({
+        success: false,
+        error: "Please provide principal, annualRate, and tenureMonths",
+      });
+    }
+
+    // Convert annual interest to monthly rate
+    const r = annualRate / 12 / 100;
+    const n = tenureMonths;
+    const P = principal;
+
+    // EMI Formula
+    const emi =
+      (P * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+
+    // Total Payable
+    const totalPayment = emi * n;
+    const totalInterest = totalPayment - P;
+
+    res.status(200).json({
+      success: true,
+      principal: P,
+      annualRate,
+      tenureMonths,
+      emi: emi.toFixed(2),
+      totalInterest: totalInterest.toFixed(2),
+      totalPayment: totalPayment.toFixed(2),
+    });
+  } catch (err) {
+    console.error("EMI Calc Error:", err);
+    res.status(500).json({ success: false, error: "Server Error" });
+  }
+}

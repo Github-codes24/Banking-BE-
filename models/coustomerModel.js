@@ -35,61 +35,34 @@ const coustomerSchema = new Schema(
       enum: ["active", "closed"],
       default: "active",
     },
-    savingAccountBalance: { type: String , default: "0"},
+    savingAccountBalance: { type: String, default: "0" },
 
-    schemes: [
+    fdSchemes: [
       {
         type: {
           type: String,
-          enum:["FD" ,"RD"]
-
         },
-
+        savingAccountNo:{
+          type: String,
+        }
+,
         // FD specific fields
         fdAccountNumber: { type: String },
         fdOpeningDate: { type: Date },
         fdDepositAmount: { type: String },
+        fdPrincipalAmount: { type: String },
         fdInterestRate: { type: String },
         fdTenure: { type: String },
-        fdTenureType: { type: String, enum: ["month", "day"] },
+        fdTenureType: { type: String, enum: ["month", "day"  ,"year"] },
         fdMaturityDate: { type: Date },
         fdMaturityAmount: { type: String },
-        maturityInstruction: { type: String },
-        // fdPayoutFrequency: {
-        //   type: String,
-        //   enum: ["monthly", "quarterly", "yearly", "atMaturity"],
-        // },
+        fdMaturityInstruction: { type: String },
+
         fdAccountStatus: {
           type: String,
-          enum: ["active", "closed", "matured"],
+          enum: ["active", "closed","pending", "matured"],
         },
         fdCloseDate: { type: Date },
-
-        // RD specific fields
-        rdAccountNumber: { type: String },
-        rdOpeningDate: { type: Date },
-        rdMaturityDate: { type: Date },
-        rdTenure: { type: String },
-        rdTenureType: { type: String, enum: ["month", "year", "week"] },
-        rdInterestRate: { type: String },
-        rdInstallAmount: { type: String },
-        rdTotalInstallments: { type: String },
-        rdInstallMentsFrequency: {
-          type: String,
-          enum: ["monthly", "quarterly"],
-        },
-        rdTotalDepositedtAmount: { type: Number },
-        rdMaturityAmount: { type: Number },
-        rdPayoutFrequency: {
-          type: String,
-          enum: ["monthly", "quarterly", "yearly", "atMaturity"],
-        },
-        rdAccountStatus: {
-          type: String,
-          enum: ["active", "closed", "matured"],
-          default: "active",
-        },
-        rdCloseDate: { type: Date },
 
         // // lakhapti
         // lakhpatiYojanaAccountNumber: { type: String },
@@ -172,14 +145,49 @@ const coustomerSchema = new Schema(
       },
     ],
 
+    rdSchemes: [
+      {
+        type: {
+          type: String,
+        },
+        savingAccountNo: {
+          type: String,
+        },
+        // RD specific fields
+        rdAccountNumber: { type: String },
+        rdOpeningDate: { type: Date },
+        rdMaturityDate: { type: Date },
+        rdTenure: { type: String },
+        rdTenureType: { type: String, enum: ["month"] },
+        rdInterestRate: { type: String },
+        rdInstallAmount: { type: String },
+        rdTotalInstallments: { type: String },
+        rdInstallMentsFrequency: {
+          type: String,
+          enum: ["monthly"],
+        },
+        rdTotalDepositedtAmount: { type: Number },
+        rdTotalDepositedInstallment: { type: Number },
+
+        rdMaturityAmount: { type: Number },
+
+        rdAccountStatus: {
+          type: String,
+          enum: ["active", "closed", "matured"],
+          default: "active",
+        },
+        rdCloseDate: { type: Date },
+      },
+    ],
+
     QrCode: {
       type: String,
     },
     CustomerId: { type: String },
 
-    Mpin: { type: String},
+    Mpin: { type: String },
 
-    password: { type: String ,required:true},
+    password: { type: String, required: true },
 
     NomineeDetails: {
       name: { type: String },
@@ -203,8 +211,8 @@ const coustomerSchema = new Schema(
 
     transactionPin: { type: Number, maxlength: 6 },
     otp: String,
-  otpExpiry: Date,
-  isOtpVerified: { type: Boolean, default: false }
+    otpExpiry: Date,
+    isOtpVerified: { type: Boolean, default: false },
   },
   { timestamps: true } // ✅ Correct placement of schema options
 );
