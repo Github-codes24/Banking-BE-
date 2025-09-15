@@ -3,6 +3,7 @@ const Agent = require("../models/agentModel");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const otpGenerator = require("otp-generator");
+const mongoose = require("mongoose")
 
 const moment = require("moment");
 
@@ -14,8 +15,7 @@ exports.getCustomers = async (req, res) => {
     const {
       fromDate,
       toDate,
-      name,
-      contact,
+      search, // ✅ instead of name & contact
       branch,
       schemeType,
       managerId,
@@ -24,7 +24,7 @@ exports.getCustomers = async (req, res) => {
 
     const filter = {};
 
-    // Date filter
+    // 🔹 Date filter
     if (fromDate || toDate) {
       filter.createdAt = {};
       if (fromDate && !isNaN(new Date(fromDate))) {
@@ -35,32 +35,30 @@ exports.getCustomers = async (req, res) => {
       }
     }
 
-    // Name filter
-    if (name) {
-      filter.name = { $regex: name, $options: "i" };
+    // 🔹 Search (name or contact)
+    if (search) {
+      filter.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { contact: { $regex: search, $options: "i" } },
+      ];
     }
 
-    // Contact filter
-    if (contact) {
-      filter.contact = contact;
-    }
-
-    // Branch filter (ObjectId check)
+    // 🔹 Branch filter
     if (branch && mongoose.Types.ObjectId.isValid(branch)) {
       filter.branch = branch;
     }
 
-    // Scheme type filter
+    // 🔹 Scheme type filter
     if (schemeType && mongoose.Types.ObjectId.isValid(schemeType)) {
       filter["schemes.type"] = schemeType;
     }
 
-    // ✅ Manager filter
+    // 🔹 Manager filter
     if (managerId && mongoose.Types.ObjectId.isValid(managerId)) {
       filter.managerId = managerId;
     }
 
-    // ✅ Agent filter
+    // 🔹 Agent filter
     if (agentId && mongoose.Types.ObjectId.isValid(agentId)) {
       filter.agentId = agentId;
     }
@@ -73,8 +71,7 @@ exports.getCustomers = async (req, res) => {
       .limit(limit)
       .populate("branch", "name")
       .populate("managerId", "name")
-      .populate("agentId", "name")
-      // .populate("schemes.type", "ledgerType");
+      .populate("agentId", "name");
 
     res.status(200).json({
       success: true,
@@ -99,19 +96,28 @@ exports.getCustomers = async (req, res) => {
   }
 };
 
-exports.getCustomer = async (req, res) => {
+exports.getCustomerById = async (req, res) => {
   try {
-    const customer = await Customer.findById(req.params.id);
+    const customer = await Customer.findById(req.params.id)
+      .populate("agentId", "name email contact") // 👈 populate agent details
+      .exec();
+
     if (!customer) {
-      return res
-        .status(404)
-        .json({ success: false, error: "No customer found" });
+      return res.status(404).json({ success: false, message: "Customer not found" });
     }
-    res.status(200).json({ success: true, data: customer });
+
+    res.status(200).json({
+      success: true,
+      data: customer,
+    });
   } catch (err) {
-    res.status(500).json({ success: false, error: "Server Error" });
+    res.status(400).json({
+      success: false,
+      message: err.message,
+    });
   }
 };
+
 
 exports.createCustomer = async (req, res) => {
   try {

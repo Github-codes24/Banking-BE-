@@ -12,7 +12,8 @@ const {
   createMpin,
   createRD,
   resetPassword,
-  emiCalculator
+  emiCalculator,
+  getCustomerById
 } = require("../controllers/coustomerController");
 
 const router = require("express").Router();
@@ -20,7 +21,7 @@ const router = require("express").Router();
 router.get("/", getCustomers);
 // GET /api/customers?page=1&limit=5&name=Ramesh&branch=Bangalore&schemeType=FD
 
-router.get("/:id", getCustomer);
+router.get("/:id", getCustomerById);
 router.post("/", createCustomer);
 router.put("/:id", updateCustomer);
 router.delete("/:id", deleteCustomer);
