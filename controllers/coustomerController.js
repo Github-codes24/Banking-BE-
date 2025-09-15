@@ -74,7 +74,7 @@ exports.getCustomers = async (req, res) => {
       .populate("branch", "name")
       .populate("managerId", "name")
       .populate("agentId", "name")
-      .populate("schemes.type", "ledgerType");
+      // .populate("schemes.type", "ledgerType");
 
     res.status(200).json({
       success: true,
