@@ -26,7 +26,7 @@ exports.registerManager = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-const branchId = req.body.branch;
+// const branchId = req.body.branch;
 
 // Create manager
 const manager = await Manager.create({
@@ -35,11 +35,11 @@ const manager = await Manager.create({
 });
 
 // Update branch with managerId
-await Branch.findByIdAndUpdate(
-  branchId, // Pass ID directly here
-  { managerId: manager._id }, // Update object
-  { new: true } // Optional, returns updated document
-);
+// await Branch.findByIdAndUpdate(
+//   branchId, // Pass ID directly here
+//   { managerId: manager._id }, // Update object
+//   { new: true } // Optional, returns updated document
+// );
 
     // Create token
     // const token = jwt.sign(
@@ -239,15 +239,22 @@ exports.getManager = async (req, res) => {
 // @desc    Update manager
 // @route   PUT /api/managers/:id
 // @access  Private/Admin
+ // ✅ make sure bcrypt is installed
+
 exports.updateManager = async (req, res) => {
   try {
-    // Exclude password from update (use separate endpoint for password updates)
-    const { password, ...updateData } = req.body;
+    let { password, ...updateData } = req.body;
+
+    // ✅ If password is sent, hash it before saving
+    if (password && password.trim() !== "") {
+      const salt = await bcrypt.genSalt(10);
+      updateData.password = await bcrypt.hash(password, salt);
+    }
 
     const manager = await Manager.findByIdAndUpdate(req.params.id, updateData, {
       new: true,
       runValidators: true,
-    }).select("-password");
+    }).select("-password"); // don’t expose password
 
     if (!manager) {
       return res.status(404).json({
@@ -271,9 +278,11 @@ exports.updateManager = async (req, res) => {
     res.status(500).json({
       success: false,
       error: "Server Error",
+      details: err.message,
     });
   }
 };
+
 
 // @desc    Delete manager
 // @route   DELETE /api/managers/:id

@@ -91,11 +91,18 @@ exports.getAgents = async (req, res) => {
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 10;
 
-    const { name, contact, branch, managerId, isActive } = req.query;
+    const { search, branch, managerId, isActive } = req.query;
 
     const filter = {};
-    if (name) filter.name = { $regex: name, $options: "i" };
-    if (contact) filter.contact = contact;
+
+    // 🔎 Search by name OR contact using one query param
+    if (search) {
+      filter.$or = [
+        { name: { $regex: search, $options: "i" } }, // case-insensitive name search
+        { contact: { $regex: search, $options: "i" } }, // partial match on contact
+      ];
+    }
+
     if (branch) filter.branch = branch;
     if (managerId) filter.managerId = managerId;
     if (isActive !== undefined) filter.isActive = isActive === "true";
@@ -123,6 +130,7 @@ exports.getAgents = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
 
 // Get Single Agent
 exports.getAgentById = async (req, res) => {

@@ -75,10 +75,13 @@ exports.loginAdmin = async (req, res) => {
       { expiresIn: process.env.ACCESS_TOKEN_EXPIRY }
     );
 
+const adminObj = admin.toObject();
+delete adminObj.password;
+
     res.status(200).json({
       success: true,
       token,
-      data: admin,
+      data: adminObj,
     });
   } catch (err) {
     res.status(500).json({
@@ -247,18 +250,14 @@ exports.updateGalleryItem = async (req, res) => {
   try {
     const { id, itemId } = req.params; // adminId + gallery itemId
     const { caption, category } = req.body;
+
+    // Handle existing image URLs from body
     let existingImgUrls = [];
-
-    console.log(req.body.exstingImgUrls, "exstingImgUrls");
-
     if (req.body.exstingImgUrls) {
       try {
-        // If frontend sends as stringified JSON array → '["url1","url2"]'
         if (typeof req.body.exstingImgUrls === "string") {
           existingImgUrls = JSON.parse(req.body.exstingImgUrls);
-        }
-        // If frontend sends as already-parsed array → ["url1","url2"]
-        else if (Array.isArray(req.body.exstingImgUrls)) {
+        } else if (Array.isArray(req.body.exstingImgUrls)) {
           existingImgUrls = req.body.exstingImgUrls;
         }
       } catch (err) {
@@ -267,41 +266,51 @@ exports.updateGalleryItem = async (req, res) => {
       }
     }
 
-    const admin = await Admin.findById(id);
-    if (!admin)
-      return res.status(404).json({ success: false, error: "Admin not found" });
+    // Normalize files (can be single object or array)
+    let galleryFiles = [];
+    if (req.files && req.files.galleryImage) {
+      galleryFiles = Array.isArray(req.files.galleryImage)
+        ? req.files.galleryImage
+        : [req.files.galleryImage];
+    }
 
-    const item = admin.gallery.id(itemId);
-    console.log(item, "item");
-    if (!item)
+    // Upload new images if present
+    const uploadedUrls = [];
+    for (const file of galleryFiles) {
+      const uploaded = await uploadToCloudinary(file.path);
+      uploadedUrls.push(uploaded.url);
+    }
+
+    // Merge existing + new
+    const updatedImgUrls = [...existingImgUrls, ...uploadedUrls];
+
+    // Atomic update of subdocument
+    const admin = await Admin.findOneAndUpdate(
+      { _id: id, "gallery._id": itemId },
+      {
+        $set: {
+          "gallery.$.caption": caption,
+          "gallery.$.category": category,
+          "gallery.$.imageUrls": updatedImgUrls,
+        },
+      },
+      { new: true } // return updated doc
+    );
+
+    if (!admin) {
       return res
         .status(404)
-        .json({ success: false, error: "Gallery item not found" });
-
-    // Update fields
-    if (caption) item.caption = caption;
-    if (category) item.category = category;
-
-    // Handle image URLs - start with existing URLs from request body
-    let updatedImgUrls = [...existingImgUrls];
-    console.log(updatedImgUrls, "updatedImgUrls1");
-    // const uploadedImagesurls = [];
-    for (const file of req.files.galleryImage) {
-      const uploaded = await uploadToCloudinary(file.path);
-      console.log(uploaded.url);
-      updatedImgUrls.push(uploaded.url);
+        .json({ success: false, error: "Admin or gallery item not found" });
     }
-    console.log(updatedImgUrls, "updatedImgUrls");
-    console.log(req.files.galleryImage, "req.files.galleryImage");
-    // Update the item's image URLs
-    item.imageUrls = updatedImgUrls;
-    console.log(item, "item");
-    await admin.save();
-    res.status(200).json({ success: true, data: item });
+
+    const updatedItem = admin.gallery.id(itemId);
+
+    res.status(200).json({ success: true, data: updatedItem });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 };
+
 
 exports.addCareers = async (req, res) => {
   try {
@@ -322,6 +331,7 @@ exports.addCareers = async (req, res) => {
       email: req.body.email,
       contactPerson: req.body.contactPerson,
       location: req.body.location,
+      desc:req.body.desc
     };
 
     admin.careers.push(data);
@@ -357,6 +367,7 @@ exports.updateCareers = async (req, res) => {
       (career.email = req.body.email),
       (career.contactPerson = req.body.contactPerson),
       (career.location = req.body.location),
+     (  career.desc=req.body.desc)
       // admin.save()
       await admin.save();
     res.status(200).json({ success: true, data: admin.careers });
@@ -859,6 +870,36 @@ exports.getAdmin = async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 };
+
+// DELETE /api/admin/gallery/:adminId/:itemId
+exports.deleteGalleryItem = async (req, res) => {
+  try {
+    const { adminId, itemId } = req.params;
+
+    // 1️⃣ Find the admin
+    const admin = await Admin.findById(adminId);
+    if (!admin) {
+      return res.status(404).json({ success: false, error: "Admin not found" });
+    }
+
+    // 2️⃣ Remove the gallery item using pull
+    const itemIndex = admin.gallery.findIndex((g) => g._id.toString() === itemId);
+    if (itemIndex === -1) {
+      return res.status(404).json({ success: false, error: "Gallery item not found" });
+    }
+
+    admin.gallery.splice(itemIndex, 1); // remove the item
+
+    // 3️⃣ Save the admin document
+    await admin.save();
+
+    res.status(200).json({ success: true, message: "Gallery item deleted successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
 
 exports.adminPasswordChange = async (req, res) => {
   try {

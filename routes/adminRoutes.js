@@ -10,6 +10,7 @@ const {
   getCareerItem,
   addBanner,
   updateBanner,
+  deleteGalleryItem,
   getBannerItem,
   deleteBanner,
   deleteLoansApplicationForm,
@@ -46,6 +47,7 @@ router.post("/passwordChange", adminPasswordChange);
 
 router.get("/get", getAdmin);
 
+
 router.post("/updatePasswordOtp", updatePasswordOtp);
 router.post("/verifyOtp", verifyOtp);
 // aftre forgot password
@@ -67,7 +69,7 @@ router.get(
 getBannerItem
 );
 router.delete(
-  "/banners/delete/:itemId/:id",
+  "/banner/delete/:itemId/:id",
   // upload.single("bannerImage"),
   deleteBanner
 );
@@ -85,6 +87,7 @@ router.put(
   upload.fields([{ name: "galleryImage", maxCount: 5 }]),
   updateGalleryItem
 );
+router.delete("/gallery/:adminId/:itemId", deleteGalleryItem);
 router.get(
   "/gallery/get/:itemId",
 
