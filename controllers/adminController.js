@@ -429,7 +429,7 @@ exports.addLoansApplicationForm = async (req, res) => {
 
     let uploadedUrl;
     if (req.file) {
-      const uploaded = await uploadToCloudinary(req.file.path);
+      const uploaded = await uploadToCloudinary(req.file.path ,req.file.originalName);
       uploadedUrl = uploaded.url;
     }
 
@@ -500,7 +500,7 @@ exports.addLegalDocs = async (req, res) => {
 
     let uploadedUrl;
     if (req.file) {
-      const uploaded = await uploadToCloudinary(req.file.path);
+      const uploaded = await uploadToCloudinary(req.file.path ,req.file.originalName);
       uploadedUrl = uploaded.url;
     }
 

@@ -14,7 +14,8 @@ cloudinary.config({
   timeout: 60000 // Increase timeout to 60 seconds
 });
 
-const uploadToCloudinary = async (filePath, retries = 3) => {
+const uploadToCloudinary = async (filePath, originalName, retries = 3) => {
+  console.log(originalName,"originalName")
   try {
     if (!filePath || !fs.existsSync(filePath)) {
       throw new Error("File path is invalid or file doesn't exist");
@@ -22,15 +23,17 @@ const uploadToCloudinary = async (filePath, retries = 3) => {
 
     const ext = path.extname(filePath);
     const mimeType = mime.lookup(ext);
-
-    // Force 'raw' for PDF, otherwise use 'auto'
-    const resourceType = mimeType === "application/pdf" ? "raw" : "auto";
+    const resourceType = "auto";
 
     return new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
           resource_type: resourceType,
           timeout: 60000,
+          // These options preserve the original filename
+          use_filename: true,      // Use the original file name
+          unique_filename: false,  // Don't add unique identifiers
+          filename_override: originalName // Force the specific filename
         },
         async (error, result) => {
           try {
@@ -43,7 +46,7 @@ const uploadToCloudinary = async (filePath, retries = 3) => {
               if (retries > 0) {
                 console.log(`Retrying upload (${retries} attempts left)...`);
                 await new Promise(res => setTimeout(res, 1000 * (4 - retries)));
-                return resolve(await uploadToCloudinary(filePath, retries - 1));
+                return resolve(await uploadToCloudinary(filePath, originalName, retries - 1));
               }
               throw error;
             }
