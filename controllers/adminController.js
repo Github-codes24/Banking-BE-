@@ -75,8 +75,8 @@ exports.loginAdmin = async (req, res) => {
       { expiresIn: process.env.ACCESS_TOKEN_EXPIRY }
     );
 
-const adminObj = admin.toObject();
-delete adminObj.password;
+    const adminObj = admin.toObject();
+    delete adminObj.password;
 
     res.status(200).json({
       success: true,
@@ -331,7 +331,7 @@ exports.addCareers = async (req, res) => {
       email: req.body.email,
       contactPerson: req.body.contactPerson,
       location: req.body.location,
-      desc:req.body.desc
+      desc: req.body.desc
     };
 
     admin.careers.push(data);
@@ -367,9 +367,9 @@ exports.updateCareers = async (req, res) => {
       (career.email = req.body.email),
       (career.contactPerson = req.body.contactPerson),
       (career.location = req.body.location),
-     (  career.desc=req.body.desc)
-      // admin.save()
-      await admin.save();
+      (career.desc = req.body.desc)
+    // admin.save()
+    await admin.save();
     res.status(200).json({ success: true, data: admin.careers });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -429,7 +429,7 @@ exports.addLoansApplicationForm = async (req, res) => {
 
     let uploadedUrl;
     if (req.file) {
-      const uploaded = await uploadToCloudinary(req.file.path ,req.file.originalName);
+      const uploaded = await uploadToCloudinary(req.file.path, req.file.originalName);
       uploadedUrl = uploaded.url;
     }
 
@@ -500,7 +500,7 @@ exports.addLegalDocs = async (req, res) => {
 
     let uploadedUrl;
     if (req.file) {
-      const uploaded = await uploadToCloudinary(req.file.path ,req.file.originalName);
+      const uploaded = await uploadToCloudinary(req.file.path, req.file.originalName);
       uploadedUrl = uploaded.url;
     }
 
@@ -566,16 +566,16 @@ exports.deleteLegalDocs = async (req, res) => {
 
 exports.addFaq = async (req, res) => {
   try {
-    const { adminId } = req.params;
-    const { question, answer } = req.body;
-
-    const admin = await Admin.findById(adminId);
+    // const { adminId } = req.params;
+    // const { question, answer } = req.body;
+    console.log(req.body, "body")
+    const admin = await Admin.findOne();
     if (!admin)
       return res
         .status(404)
         .json({ success: false, message: "Admin not found" });
 
-    admin.faq.push({ question, answer });
+    admin.faq = req.body.faqs
     await admin.save();
 
     res.status(201).json({
@@ -666,10 +666,10 @@ exports.addSchems = async (req, res) => {
 
     let logoUrl = "";
     let pdfUrl = "";
-console.log( req.files["logo"],req.files["pdf"])
+    console.log(req.files["logo"], req.files["pdf"])
     // Upload logo if exists
     if (req.files && req.files["logo"]) {
-      const uploadedLogo = await uploadToCloudinary(req.files["logo"][0].path,req.files["logo"][0].originalname );
+      const uploadedLogo = await uploadToCloudinary(req.files["logo"][0].path, req.files["logo"][0].originalname);
       logoUrl = uploadedLogo.url;
     }
 
@@ -717,7 +717,7 @@ exports.updateSchems = async (req, res) => {
     let pdfUrl = null;
 
 
-    
+
     // Upload logo if exists
     if (req.files && req.files["logo"]) {
       const uploadedLogo = await uploadToCloudinary(req.files["logo"][0].path);
@@ -749,9 +749,9 @@ exports.updateSchems = async (req, res) => {
   }
 };
 
-exports.getSchemsById = async(req,res)=>{
-  try{
- const { itemId } = req.params;
+exports.getSchemsById = async (req, res) => {
+  try {
+    const { itemId } = req.params;
     const admin = await Admin.findOne();
 
     if (!admin) {
@@ -763,13 +763,13 @@ exports.getSchemsById = async(req,res)=>{
       return res.status(404).json({ success: false, message: "Scheme not found" });
     }
 
-     res.status(200).json({
+    res.status(200).json({
       success: true,
       message: "Scheme fetch successfully",
       data: scheme, // return updated scheme instead of all schemes
     });
-  }catch(err){
-console.error("Update Schemes Error:", err);
+  } catch (err) {
+    console.error("Update Schemes Error:", err);
     res.status(500).json({ success: false, error: err.message });
   }
 }
@@ -832,7 +832,7 @@ exports.addAboutUs = async (req, res) => {
 
     // uploaded file from multer
     const imageUrl = req.file ? req.file.path : null;
-    let uploadedImage = req.body.imageUrl||"";
+    let uploadedImage = req.body.imageUrl || "";
 
     if (imageUrl) {
       const uploaded = await uploadToCloudinary(imageUrl);
@@ -998,7 +998,7 @@ exports.updatePasswordOtp = async (req, res) => {
     // 5. Respond success
     res.status(200).json({
       success: true,
-      otp:otp, // for testing, remove in production
+      otp: otp, // for testing, remove in production
       message: "OTP sent to email",
     });
   } catch (err) {

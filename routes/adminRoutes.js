@@ -148,7 +148,7 @@ router.get(
 );
 
 // faq
-router.post("/:adminId/faq", addFaq);
+router.put("/faq", addFaq);
 
 // Get all FAQs
 router.get("/:adminId/faq", getFaqs);
