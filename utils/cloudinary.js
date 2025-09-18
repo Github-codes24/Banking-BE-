@@ -15,34 +15,42 @@ cloudinary.config({
 });
 
 const uploadToCloudinary = async (filePath, originalName, retries = 3) => {
-  console.log(originalName,"originalName")
+  console.log(`Uploading: ${originalName || 'unnamed file'} from ${filePath}`);
+  
   try {
     if (!filePath || !fs.existsSync(filePath)) {
       throw new Error("File path is invalid or file doesn't exist");
     }
 
-    const ext = path.extname(filePath);
+    const ext = path.extname(filePath).toLowerCase();
     const mimeType = mime.lookup(ext);
-    const resourceType = "auto";
+    
+    let resourceType = "auto";
+    if (ext === '.pdf') {
+      resourceType = "auto";
+    } else if (['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext)) {
+      resourceType = "image";
+    }
+    
+    console.log(`File type: ${mimeType}, Resource type: ${resourceType}`);
 
     return new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
           resource_type: resourceType,
           timeout: 60000,
-          // These options preserve the original filename
-          use_filename: true,      // Use the original file name
-          unique_filename: false,  // Don't add unique identifiers
-          filename_override: originalName // Force the specific filename
+          use_filename: true,
+          unique_filename: true, // Let Cloudinary handle uniqueness
+          // Remove filename_override to avoid the error
         },
         async (error, result) => {
           try {
-            // Always clean up file
             if (fs.existsSync(filePath)) {
               await fs.promises.unlink(filePath).catch(console.error);
             }
 
             if (error) {
+              console.error('Cloudinary error:', error);
               if (retries > 0) {
                 console.log(`Retrying upload (${retries} attempts left)...`);
                 await new Promise(res => setTimeout(res, 1000 * (4 - retries)));
@@ -51,6 +59,7 @@ const uploadToCloudinary = async (filePath, originalName, retries = 3) => {
               throw error;
             }
 
+            console.log('Upload successful:', result.secure_url);
             resolve(result);
           } catch (err) {
             reject(err);
@@ -59,18 +68,7 @@ const uploadToCloudinary = async (filePath, originalName, retries = 3) => {
       );
 
       const readStream = fs.createReadStream(filePath);
-
-      readStream.on("error", (err) => {
-        uploadStream.destroy();
-        reject(err);
-      });
-
-      uploadStream.on("error", (err) => {
-        readStream.destroy();
-        reject(err);
-      });
-
-      pipeline(readStream, uploadStream).catch(reject);
+      readStream.pipe(uploadStream);
     });
   } catch (error) {
     if (filePath && fs.existsSync(filePath)) {

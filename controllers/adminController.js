@@ -666,16 +666,16 @@ exports.addSchems = async (req, res) => {
 
     let logoUrl = "";
     let pdfUrl = "";
-
+console.log( req.files["logo"],req.files["pdf"])
     // Upload logo if exists
     if (req.files && req.files["logo"]) {
-      const uploadedLogo = await uploadToCloudinary(req.files["logo"][0].path);
+      const uploadedLogo = await uploadToCloudinary(req.files["logo"][0].path,req.files["logo"][0].originalname );
       logoUrl = uploadedLogo.url;
     }
 
     // Upload pdf if exists
     if (req.files && req.files["pdf"]) {
-      const uploadedPdf = await uploadToCloudinary(req.files["pdf"][0].path);
+      const uploadedPdf = await uploadToCloudinary(req.files["pdf"][0].path, req.files["pdf"][0].originalname)
       pdfUrl = uploadedPdf.url;
     }
 
@@ -716,6 +716,8 @@ exports.updateSchems = async (req, res) => {
     let logoUrl = null;
     let pdfUrl = null;
 
+
+    
     // Upload logo if exists
     if (req.files && req.files["logo"]) {
       const uploadedLogo = await uploadToCloudinary(req.files["logo"][0].path);
@@ -746,6 +748,31 @@ exports.updateSchems = async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 };
+
+exports.getSchemsById = async(req,res)=>{
+  try{
+ const { itemId } = req.params;
+    const admin = await Admin.findOne();
+
+    if (!admin) {
+      return res.status(404).json({ success: false, error: "Admin not found" });
+    }
+
+    const scheme = admin.schemes.id(itemId);
+    if (!scheme) {
+      return res.status(404).json({ success: false, message: "Scheme not found" });
+    }
+
+     res.status(200).json({
+      success: true,
+      message: "Scheme fetch successfully",
+      data: scheme, // return updated scheme instead of all schemes
+    });
+  }catch(err){
+console.error("Update Schemes Error:", err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
 
 
 exports.deleteSchems = async (req, res) => {
@@ -805,7 +832,7 @@ exports.addAboutUs = async (req, res) => {
 
     // uploaded file from multer
     const imageUrl = req.file ? req.file.path : null;
-    let uploadedImage = "";
+    let uploadedImage = req.body.imageUrl||"";
 
     if (imageUrl) {
       const uploaded = await uploadToCloudinary(imageUrl);

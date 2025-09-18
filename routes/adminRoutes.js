@@ -10,6 +10,7 @@ const {
   getCareerItem,
   addBanner,
   updateBanner,
+  getSchemsById,
   deleteGalleryItem,
   getBannerItem,
   deleteBanner,
@@ -179,6 +180,11 @@ router.delete(
   "/schemes/delete/:itemId",
   // upload.single("schemes"),
   deleteSchems
+);
+router.get(
+  "/schemes/get/:itemId",
+  // upload.single("schemes"),
+  getSchemsById
 );
 router.post(
   "/aboutUs/add",
