@@ -542,8 +542,8 @@ exports.createFD = async (req, res) => {
       fdTenureType === "year"
         ? Number(fdTenure)
         : fdTenureType === "month"
-        ? Number(fdTenure) / 12
-        : Number(fdTenure) / 365;
+          ? Number(fdTenure) / 12
+          : Number(fdTenure) / 365;
 
     const maturityAmount = principal * Math.pow(1 + rate, time);
 
@@ -632,7 +632,7 @@ exports.createRD = async (req, res) => {
       rdInstallAmount: P,
       savingAccountNo,
       type,
-      rdTotalDepositedInstallment:0,
+      rdTotalDepositedInstallment: 0,
       rdInstallMentsFrequency: "monthly",
       rdTotalDepositedtAmount: 0,
       rdTotalInstallments: rdTenure,
@@ -658,7 +658,130 @@ exports.createRD = async (req, res) => {
 };
 
 
-exports.emiCalculator = async(req,res)=>{
+
+
+exports.createLoan = async (req, res) => {
+  try {
+
+    const { customerId } = req.params; // pass customerId in URL
+
+
+    // ✅ Find customer
+    const customer = await Customer.findOne({ CustomerId: customerId });
+    if (!customer) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Customer not found" });
+    }
+
+    const { loanPrincipalAmount, loanType, loanTenure, loanTenureType, loanEMIFrequency } = req.body;
+
+    if (!loanPrincipalAmount || !loanTenure || !loanType || !loanTenureType || !loanEMIFrequency) {
+      return res.status(400).json({ success: false, message: "Required fields missing" });
+    }
+
+    // 1. Calculate total number of EMIs based on tenure type and frequency
+    let totalEmisCount;
+    switch (loanTenureType) {
+      case "year":
+        totalEmisCount =
+          loanTenure *
+          (loanEMIFrequency === "monthly" ? 12 : loanEMIFrequency === "quarterly" ? 4 : 1);
+        break;
+      case "month":
+        totalEmisCount =
+          loanTenure *
+          (loanEMIFrequency === "monthly"
+            ? 1
+            : loanEMIFrequency === "quarterly"
+              ? 1 / 3
+              : 1 / 12);
+        break;
+      case "week":
+        // Assuming 4 weeks per month
+        totalEmisCount =
+          loanTenure *
+          (loanEMIFrequency === "monthly"
+            ? 4
+            : loanEMIFrequency === "quarterly"
+              ? 13
+              : 52);
+        break;
+      default:
+        totalEmisCount = Number(loanTenure);
+    }
+    totalEmisCount = Math.round(totalEmisCount);
+
+    // 2. Calculate estimated EMI amount using a simple interest formula as an example
+    // You can replace with your actual interest calculation logic
+    const assumedInterestRate = 10; // Annual interest rate in percent (example)
+    const principal = parseFloat(loanPrincipalAmount);
+    const tenureInYears =
+      loanTenureType === "year"
+        ? loanTenure
+        : loanTenureType === "month"
+          ? loanTenure / 12
+          : loanTenure / 52;
+    const totalInterest = (principal * assumedInterestRate * tenureInYears) / 100;
+    const totalAmount = principal + totalInterest;
+    const emiAmount = totalAmount / totalEmisCount;
+
+    // 3. Set dates - opening and disbursement dates as today, no EMIs paid yet
+    const today = new Date();
+
+    // 4. Calculate next EMI date based on EMI frequency
+    let nextEmiDate = new Date(today);
+    switch (loanEMIFrequency) {
+      case "monthly":
+        nextEmiDate.setMonth(nextEmiDate.getMonth() + 1);
+        break;
+      case "quarterly":
+        nextEmiDate.setMonth(nextEmiDate.getMonth() + 3);
+        break;
+      case "yearly":
+        nextEmiDate.setFullYear(nextEmiDate.getFullYear() + 1);
+        break;
+    }
+
+    // 5. Compose new Loan object with all calculated and default values
+    const newLoan = {
+      loanAccountNumber: `LN${Date.now()}`, // Generate a simple unique loan account number
+      loanOpeningDate: today,
+      loanPrincipalAmount: loanPrincipalAmount.toString(),
+      loanDisbursementDate: today,
+      loanOutstandingAmount: totalAmount,
+      loanEMIAmount: Math.round(emiAmount * 100) / 100, // Rounded to 2 decimals
+      loanEMIFrequency,
+      loanTotalEmiDeposited: "0",
+      loanTotalNumberOfEmiDeposited: "0",
+      loanInterestRate: assumedInterestRate.toString(),
+      loanType: "personal", // You can choose to set default or pass this later
+      loanStatus: "active",
+      loanTenure: loanTenure.toString(),
+      loanTenureType,
+      loanRemainingEmis: totalEmisCount,
+      loanTotalEmis: totalEmisCount.toString(),
+      loanLastEmiDate: null,
+      loanNextEmiDate: nextEmiDate,
+      loandDisbursed: true,
+    };
+
+    customer.loans.push(newLoan);
+    await customer.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Loan created successfully with calculated fields",
+      loan: newLoan,
+    });
+  } catch (err) {
+    console.error("createLoan error", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+
+exports.emiCalculator = async (req, res) => {
   try {
     const { principal, annualRate, tenureMonths } = req.body;
 

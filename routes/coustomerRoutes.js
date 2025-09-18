@@ -13,7 +13,8 @@ const {
   createRD,
   resetPassword,
   emiCalculator,
-  getCustomerById
+  getCustomerById,
+  createLoan
 } = require("../controllers/coustomerController");
 
 const router = require("express").Router();
@@ -36,6 +37,7 @@ router.post("/createMpin", createMpin);
 router.post("/resetPassword", resetPassword);
 router.post("/createFD/:customerId", createFD);
 router.post("/createRD/:customerId", createRD);
+router.post("/createLoan/:customerId", createLoan);
 router.post("/emi/calculator", emiCalculator);
 
 module.exports = router;

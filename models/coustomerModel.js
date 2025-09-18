@@ -42,10 +42,10 @@ const coustomerSchema = new Schema(
         type: {
           type: String,
         },
-        savingAccountNo:{
+        savingAccountNo: {
           type: String,
         }
-,
+        ,
         // FD specific fields
         fdAccountNumber: { type: String },
         fdOpeningDate: { type: Date },
@@ -53,14 +53,14 @@ const coustomerSchema = new Schema(
         fdPrincipalAmount: { type: String },
         fdInterestRate: { type: String },
         fdTenure: { type: String },
-        fdTenureType: { type: String, enum: ["month", "day"  ,"year"] },
+        fdTenureType: { type: String, enum: ["month", "day", "year"] },
         fdMaturityDate: { type: Date },
         fdMaturityAmount: { type: String },
         fdMaturityInstruction: { type: String },
 
         fdAccountStatus: {
           type: String,
-          enum: ["active", "closed","pending", "matured"],
+          enum: ["active", "closed", "pending", "matured"],
         },
         fdCloseDate: { type: Date },
 
@@ -93,58 +93,70 @@ const coustomerSchema = new Schema(
         // },
         // lakhpatiYojanaCloseDate: { type: Date },
         // // Pigmy specific fields
-        // pigMyAccountNumber: { type: String },
-        // pigMyOpeningDate: { type: Date },
-        // pigMyMaturityDate: { type: Date },
-        // pigMyInterestRate: { type: String },
-        // pigMyTotalInstallMents: { type: String },
-        // pigMyTotalDepositedAmount: { type: String },
-        // pigmyDailyDeposit: { type: String },
-        // pigmyCollectorId: {
-        //   type: mongoose.Schema.Types.ObjectId,
-        //   ref: "Agent",
-        // },
-        // pigMyMaturityAmount: { type: String },
-        // pigMyAccountStatus: {
-        //   type: String,
-        //   enum: ["active", "closed", "matured"],
-        //   default: "active",
-        // },
+       
 
         // // Loan specific fields
-        // loanAccountNumber: { type: String },
-        // loanOpeningDate: { type: Date },
-        // loandPrincipalAmount: { type: String },
-        // loanDisbursementDate: { type: Date },
-        // loanOutstandingAmount: { type: String },
-        // loanEMIAmount: { type: Number },
-        // loandDisbursed: { type: Boolean, default: false },
-        // loanEMIFrequency: {
-        //   type: String,
-        //   enum: ["monthly", "quarterly", "yearly"],
-        // },
-        // loanTotalEmiDeposited: { type: String },
-        // loanInterestRate: { type: String },
-        // loanType: {
-        //   type: String,
-        //   enum: ["personal", "home", "auto", "education"],
-        // },
 
-        // loanStatus: {
-        //   type: String,
-        //   enum: ["active", "closed", "defaulted"],
-        //   default: "active",
-        // },
-
-        // loanTenure: { type: String },
-        // loanTenureType: { type: String, enum: ["month", "year", "week"] },
-        // loanRemainingEmis: { type: Number },
-        // loanTotalEmis: { type: String },
-        // loanLastEmiDate: { type: Date },
-        // loanNextEmiDate: { type: Date },
       },
     ],
 
+    loans: [
+      {
+        loanAccountNumber: { type: String },
+        loanOpeningDate: { type: Date },
+        loandPrincipalAmount: { type: String },
+        loanDisbursementDate: { type: Date },
+        loanOutstandingAmount: { type: String },
+        loanEMIAmount: { type: Number },
+        loandDisbursed: { type: Boolean, default: false },
+        loanEMIFrequency: {
+          type: String,
+          enum: ["monthly", "quarterly", "yearly"],
+        },
+        loanTotalEmiDeposited: { type: String },
+        loanTotalNumberOfEmiDeposited: { type: String },
+        loanInterestRate: { type: String },
+        loanType: {
+          type: String,
+          enum: ["personal", "home", "auto", "education"],
+        },
+
+        loanStatus: {
+          type: String,
+          enum: ["active", "closed", "pending","defaulted"],
+          default: "active",
+        },
+
+        loanTenure: { type: String },
+        loanTenureType: { type: String, enum: ["month", "year", "week"] },
+        loanRemainingEmis: { type: Number },
+        loanTotalEmis: { type: String },
+        loanLastEmiDate: { type: Date },
+        loanNextEmiDate: { type: Date },
+      }
+    ]
+,
+    pigmy:[
+      {
+        type:{type:String},
+         pigMyAccountNumber: { type: String },
+        pigMyOpeningDate: { type: Date },
+        pigMyMaturityDate: { type: Date },
+        pigMyInterestRate: { type: String },
+        pigMyTotalInstallMents: { type: String },
+        pigMyTotalDepositedAmount: { type: String },
+        pigMyTotalInstallmentDepositedAmount: { type: String },
+        pigmyDailyDeposit: { type: String },
+       
+        pigMyMaturityAmount: { type: String },
+        pigMyAccountStatus: {
+          type: String,
+          enum: ["active", "closed", "pending", "matured"],
+          default: "active",
+        },
+      }
+    ]
+    ,
     rdSchemes: [
       {
         type: {
@@ -173,7 +185,7 @@ const coustomerSchema = new Schema(
 
         rdAccountStatus: {
           type: String,
-          enum: ["active", "closed", "matured"],
+          enum: ["active", "closed", "pending", "matured"],
           default: "active",
         },
         rdCloseDate: { type: Date },
