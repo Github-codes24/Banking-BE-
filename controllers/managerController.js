@@ -5,7 +5,7 @@ const sendOtpEmail = require("../utils/sendMail");
 // const Manager = require("../models/Manager"); // adjust path
 const crypto = require("crypto");
 const Agent = require("../models/agentModel");
-const Branch =  require("../models/branchModel")
+const Branch = require("../models/branchModel")
 
 exports.registerManager = async (req, res) => {
   try {
@@ -26,20 +26,20 @@ exports.registerManager = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-// const branchId = req.body.branch;
+    // const branchId = req.body.branch;
 
-// Create manager
-const manager = await Manager.create({
-  ...req.body,
-  password: hashedPassword,
-});
+    // Create manager
+    const manager = await Manager.create({
+      ...req.body,
+      password: hashedPassword,
+    });
 
-// Update branch with managerId
-// await Branch.findByIdAndUpdate(
-//   branchId, // Pass ID directly here
-//   { managerId: manager._id }, // Update object
-//   { new: true } // Optional, returns updated document
-// );
+    // Update branch with managerId
+    // await Branch.findByIdAndUpdate(
+    //   branchId, // Pass ID directly here
+    //   { managerId: manager._id }, // Update object
+    //   { new: true } // Optional, returns updated document
+    // );
 
     // Create token
     // const token = jwt.sign(
@@ -239,7 +239,7 @@ exports.getManager = async (req, res) => {
 // @desc    Update manager
 // @route   PUT /api/managers/:id
 // @access  Private/Admin
- // ✅ make sure bcrypt is installed
+// ✅ make sure bcrypt is installed
 
 exports.updateManager = async (req, res) => {
   try {
@@ -458,12 +458,12 @@ exports.getAgents = async (req, res) => {
     const search = req.query.search || "";
     const searchQuery = search
       ? {
-          $or: [
-            { name: { $regex: search, $options: "i" } },
-            { email: { $regex: search, $options: "i" } },
-            { phone: { $regex: search, $options: "i" } }, // if phone field exists
-          ],
-        }
+        $or: [
+          { name: { $regex: search, $options: "i" } },
+          { email: { $regex: search, $options: "i" } },
+          { phone: { $regex: search, $options: "i" } }, // if phone field exists
+        ],
+      }
       : {};
 
     // Base filter (agents under specific manager)
@@ -500,7 +500,7 @@ exports.getAgents = async (req, res) => {
     });
   }
 };
- // adjust path to your Manager model
+// adjust path to your Manager model
 
 exports.changeManagerPassword = async (req, res) => {
   try {
@@ -552,3 +552,77 @@ exports.changeManagerPassword = async (req, res) => {
   }
 };
 
+
+exports.makeAgentBlock = async (req, res) => {
+  try {
+    const { agentId } = req.params;
+
+    const agent = await Agent.findById(agentId);
+    if (!agent) {
+      return res.status(404).json({
+        success: false,
+        message: "Agent with this ID not found",
+      });
+    }
+
+    if (!agent.isActive) {
+      return res.status(400).json({
+        success: false,
+        message: "Agent is already blocked",
+      });
+    }
+
+    agent.isActive = false;
+    await agent.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Agent successfully blocked",
+      agent,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: err.message,
+    });
+  }
+};
+
+exports.makeAgentUnBlock = async (req, res) => {
+  try {
+    const { agentId } = req.params;
+
+    const agent = await Agent.findById(agentId);
+    if (!agent) {
+      return res.status(404).json({
+        success: false,
+        message: "Agent with this ID not found",
+      });
+    }
+
+    if (agent.isActive) {
+      return res.status(400).json({
+        success: false,
+        message: "Agent is already active",
+      });
+    }
+
+    agent.isActive = true;
+    await agent.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Agent successfully unblocked",
+      agent,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: err.message,
+    });
+  }
+};

@@ -781,6 +781,124 @@ exports.createLoan = async (req, res) => {
 };
 
 
+exports.createPigmy = async (req, res) => {
+  try {
+    const {
+      type,
+      pigmyDailyDeposit,
+      pigMyTenure,
+      pigMyTenureType, // "month", "year", "week"
+      // Optional: allow override, else set default
+    } = req.body;
+
+
+
+    const { customerId } = req.params; // pass customerId in URL
+
+
+    // ✅ Find customer
+    const customer = await Customer.findOne({ CustomerId: customerId });
+    if (!customer) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Customer not found" });
+    }
+
+
+    const pigMyInterestRate = 8
+
+    if (!pigmyDailyDeposit || !type || !pigMyTenure || !pigMyTenureType) {
+      return res.status(400).json({
+        success: false,
+        message: "type, pigmyDailyDeposit, pigMyTenure, and pigMyTenureType are required",
+      });
+    }
+
+    // Parse values with defaults and safety
+    const tenure = parseInt(pigMyTenure, 10);
+    if (isNaN(tenure) || tenure <= 0) {
+      return res.status(400).json({ success: false, message: "Invalid tenure value" });
+    }
+
+    let tenureMonths;
+    switch (pigMyTenureType) {
+      case "month":
+        tenureMonths = tenure;
+        break;
+      case "year":
+        tenureMonths = tenure * 12;
+        break;
+      case "week":
+        tenureMonths = tenure * (12 / 52); // 1 year = 52 weeks, scale to months
+        break;
+      default:
+        return res.status(400).json({ success: false, message: "Invalid tenure type" });
+    }
+
+    const today = new Date();
+    const maturityDate = new Date(today);
+    maturityDate.setMonth(maturityDate.getMonth() + Math.round(tenureMonths));
+
+    // Calculate total installments: daily deposit means 30 days approx per month, else scale accordingly
+    let totalInstallments;
+    if (pigMyTenureType === "week") {
+      totalInstallments = tenure * 7; // weeks × 7 days
+    } else {
+      totalInstallments = Math.round(tenureMonths * 30); // months × 30 days
+    }
+
+    const depositAmount = parseFloat(pigmyDailyDeposit);
+    if (isNaN(depositAmount) || depositAmount <= 0) {
+      return res.status(400).json({ success: false, message: "Invalid daily deposit value" });
+    }
+
+    const totalDepositedAmount = depositAmount * totalInstallments;
+
+    // Interest rate, fallback on default if not passed
+    const interestRate = pigMyInterestRate
+      ? parseFloat(pigMyInterestRate)
+      : 6.0;
+    if (isNaN(interestRate) || interestRate < 0) {
+      return res.status(400).json({ success: false, message: "Invalid interest rate" });
+    }
+
+    const timeYears = tenureMonths / 12;
+    const interestAmount = (totalDepositedAmount * interestRate * timeYears) / 100;
+    const maturityAmount = totalDepositedAmount + interestAmount;
+
+    // Generate account number
+    const pigmyAccountNumber = `PGMY${Date.now()}`;
+
+    // Build Pigmy object
+    const newPigmy = {
+      type,
+      pigMyAccountNumber: pigmyAccountNumber,
+      pigMyOpeningDate: today,
+      pigMyTenure: pigMyTenure,
+      pigMyTenureType: pigMyTenureType,
+      pigMyMaturityDate: maturityDate,
+      pigMyInterestRate: interestRate.toString(),
+      pigMyTotalDepositedAmount: "0",
+      pigMyTotalInstallmentDeposited: "0",
+      pigmyDailyDeposit: pigmyDailyDeposit.toString(),
+      pigMyMaturityAmount: maturityAmount.toFixed(2).toString(),
+      pigMyAccountStatus: "active",
+    };
+    customer.pigmy.push(newPigmy)
+    await customer.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Pigmy account created successfully",
+      pigmy: newPigmy,
+    });
+  } catch (err) {
+    console.error("createPigmy error", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+
 exports.emiCalculator = async (req, res) => {
   try {
     const { principal, annualRate, tenureMonths } = req.body;

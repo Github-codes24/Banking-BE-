@@ -93,7 +93,7 @@ const coustomerSchema = new Schema(
         // },
         // lakhpatiYojanaCloseDate: { type: Date },
         // // Pigmy specific fields
-       
+
 
         // // Loan specific fields
 
@@ -104,11 +104,12 @@ const coustomerSchema = new Schema(
       {
         loanAccountNumber: { type: String },
         loanOpeningDate: { type: Date },
-        loandPrincipalAmount: { type: String },
+        loanClosingDate: { type: Date },
+        loanPrincipalAmount: { type: String },
         loanDisbursementDate: { type: Date },
         loanOutstandingAmount: { type: String },
         loanEMIAmount: { type: Number },
-        loandDisbursed: { type: Boolean, default: false },
+        loanDisbursed: { type: Boolean, default: false },
         loanEMIFrequency: {
           type: String,
           enum: ["monthly", "quarterly", "yearly"],
@@ -123,7 +124,7 @@ const coustomerSchema = new Schema(
 
         loanStatus: {
           type: String,
-          enum: ["active", "closed", "pending","defaulted"],
+          enum: ["active", "closed", "pending", "defaulted"],
           default: "active",
         },
 
@@ -135,19 +136,22 @@ const coustomerSchema = new Schema(
         loanNextEmiDate: { type: Date },
       }
     ]
-,
-    pigmy:[
+    ,
+    pigmy: [
       {
-        type:{type:String},
-         pigMyAccountNumber: { type: String },
+        type: { type: String },
+        pigMyAccountNumber: { type: String },
         pigMyOpeningDate: { type: Date },
+ pigMyCloseDate: { type: Date },
+        pigMyTenure: { type: String },
+        pigMyTenureType: { type: String, enum: ["month", "year", "week"] },
         pigMyMaturityDate: { type: Date },
         pigMyInterestRate: { type: String },
-        pigMyTotalInstallMents: { type: String },
+        // pigMyTotalInstallMents: { type: String },
         pigMyTotalDepositedAmount: { type: String },
-        pigMyTotalInstallmentDepositedAmount: { type: String },
+        pigMyTotalInstallmentDeposited: { type: String },
         pigmyDailyDeposit: { type: String },
-       
+// 
         pigMyMaturityAmount: { type: String },
         pigMyAccountStatus: {
           type: String,

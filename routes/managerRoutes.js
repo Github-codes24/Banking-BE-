@@ -11,7 +11,9 @@ const {
   verifyOtp,
   changePassword,
   getAgents,
-  changeManagerPassword
+  changeManagerPassword,
+  makeAgentBlock,
+  makeAgentUnBlock
 } = require("../controllers/managerController");
 const { authCheck } = require("../middilewares/authCheck");
 
@@ -27,6 +29,8 @@ router.post("/password-otp", updatePasswordOtp);
 router.post("/verify-otp", verifyOtp);
 router.post("/change-password", changePassword);
 router.get("/agents/:managerId", getAgents);
+router.post("/agent/block/:agentId", makeAgentBlock);
+router.post("/agent/unblock/:agentId", makeAgentUnBlock);
 router.post("/password-change/:managerId", changeManagerPassword);
 
 module.exports = router;

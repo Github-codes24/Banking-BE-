@@ -9,7 +9,7 @@ const transactionSchemaForSchemes = new mongoose.Schema(
     },
     schemeType: {
       type: String,
-      enum: ["FD", "RD"],
+      enum: ["FD", "RD" ,"LOAN","PIGMY"],
       required: true,
     },
     accountNumber: { type: String, required: true }, // FD/RD account number

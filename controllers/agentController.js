@@ -48,6 +48,14 @@ exports.loginAgent = async (req, res) => {
       });
     }
 
+    // Check if agent is active
+    if (!agent.isActive) {
+      return res.status(403).json({
+        success: false,
+        message: "Your account is blocked. Please contact admin.",
+      });
+    }
+
     // Compare password
     const isMatch = await bcrypt.compare(password, agent.password);
     if (!isMatch) {
@@ -80,7 +88,8 @@ exports.loginAgent = async (req, res) => {
   } catch (err) {
     res.status(500).json({
       success: false,
-      message: err.message,
+      message: "Server error",
+      error: err.message,
     });
   }
 };
@@ -90,16 +99,15 @@ exports.getAgents = async (req, res) => {
   try {
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 10;
-
-    const { search, branch, managerId, isActive } = req.query;
+    const { search, branch, managerId, isActive, all } = req.query;
 
     const filter = {};
 
-    // 🔎 Search by name OR contact using one query param
+    // 🔎 Search by name OR contact
     if (search) {
       filter.$or = [
-        { name: { $regex: search, $options: "i" } }, // case-insensitive name search
-        { contact: { $regex: search, $options: "i" } }, // partial match on contact
+        { name: { $regex: search, $options: "i" } },
+        { contact: { $regex: search, $options: "i" } },
       ];
     }
 
@@ -109,12 +117,28 @@ exports.getAgents = async (req, res) => {
 
     const total = await Agent.countDocuments(filter);
 
-    const agents = await Agent.find(filter)
+    let query = Agent.find(filter)
       .populate("managerId", "name email")
       .populate("branch", "name code")
-      .skip((page - 1) * limit)
-      .limit(limit)
       .sort({ createdAt: -1 });
+
+    // ✅ If "all=true" → return all agents without pagination
+    if (all === "true") {
+      const agents = await query;
+      return res.status(200).json({
+        success: true,
+        count: agents.length,
+        pagination: {
+          totalItems: total,
+          currentPage: null,
+          totalPages: 1,
+        },
+        data: agents,
+      });
+    }
+
+    // ✅ Otherwise, apply pagination
+    const agents = await query.skip((page - 1) * limit).limit(limit);
 
     res.status(200).json({
       success: true,
@@ -130,6 +154,7 @@ exports.getAgents = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
 
 
 // Get Single Agent
