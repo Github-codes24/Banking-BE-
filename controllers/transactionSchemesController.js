@@ -53,10 +53,10 @@ exports.rdTransaction = async (req, res) => {
     }
 
     // 3. Block if RD is closed
-    if (scheme.rdAccountStatus === "closed") {
+    if (scheme.rdAccountStatus === "closed" || scheme.rdAccountStatus === "matured") {
       return res.status(400).json({
         success: false,
-        message: "This RD scheme is already closed",
+        message: `This RD scheme is already ${scheme.rdAccountStatus}`,
       });
     }
 
@@ -74,37 +74,30 @@ exports.rdTransaction = async (req, res) => {
       }
 
       // 🔹 Update RD scheme deposit tracking
-      scheme.rdTotalDepositedAmount =
-        Number(scheme.rdTotalDepositedAmount || 0) + Number(amount);
+      // scheme.rdTotalDepositedtAmount =
+      //   Number(scheme.rdTotalDepositedtAmount || 0) + Number(amount);
 
-      scheme.rdTotalDepositedInstallment =
-        Number(scheme.rdTotalDepositedInstallment || 0) + 1;
+      // scheme.rdTotalDepositedInstallment =
+      //   Number(scheme.rdTotalDepositedInstallment || 0) + 1;
 
-      scheme.rdLastEmiDate = now;
+      // scheme.rdLastEmiDate = now;
+
+      // 🔹 Calculate next EMI date
+      // if (!scheme.rdNextEmiDate) {
+      //   scheme.rdNextEmiDate = new Date(now);
+      // }
+
+      // const nextDate = new Date(scheme.rdNextEmiDate);
+      // nextDate.setMonth(nextDate.getMonth() + 1); // assuming monthly RD
+      // scheme.rdNextEmiDate = nextDate;
+
+      // // 🔹 Check maturity
+      // if (scheme.rdMaturityDate && new Date(scheme.rdNextEmiDate) > new Date(scheme.rdMaturityDate)) {
+      //   scheme.rdAccountStatus = "matured";
+      // }
     }
 
-    // 5. Handle maturity payout
-    else if (transactionType === "maturityPayout") {
-      if (!scheme.rdMaturityDate || new Date(scheme.rdMaturityDate) > now) {
-        return res.status(400).json({
-          success: false,
-          message: "RD scheme has not matured yet",
-        });
-      }
-
-      if (scheme.rdAccountStatus === "closed") {
-        return res.status(400).json({
-          success: false,
-          message: "RD scheme already closed",
-        });
-      }
-
-      // 🔹 Mark as closed
-      scheme.rdAccountStatus = "closed";
-      scheme.rdCloseDate = now;
-    }
-
-    // 6. Invalid transaction type
+    // 5. Invalid transaction type
     else {
       return res.status(400).json({
         success: false,
@@ -112,10 +105,10 @@ exports.rdTransaction = async (req, res) => {
       });
     }
 
-    // 7. Save customer updates
-    await customer.save();
+    // 6. Save customer updates
+    // await customer.save();
 
-    // 8. Create transaction record
+    // 7. Create transaction record
     const transactionId = await generateTransactionId("RD");
     const transaction = await Transaction.create({
       transactionId,
@@ -125,7 +118,7 @@ exports.rdTransaction = async (req, res) => {
       transactionType,
       amount,
       mode,
-      installmentNo: (scheme.rdTotalDepositedInstallment || 0),
+      installmentNo: scheme.rdTotalDepositedInstallment + 1 || 0,
       agentId,
       managerId: customer.managerId,
       remarks,
@@ -146,6 +139,7 @@ exports.rdTransaction = async (req, res) => {
     });
   }
 };
+
 
 
 
@@ -198,41 +192,47 @@ exports.fdTransaction = async (req, res) => {
         });
       }
 
-      // Save deposit
-      // scheme.fdDepositAmount = amount;
-      scheme.fdAccountStatus = "pending";
-      // scheme.fdAccountStatus = "pending";
-      // payoutAmount = amount;
-    } else if (transactionType === "maturityPayout") {
-      const now = new Date();
 
-      if (!scheme.fdMaturityDate || new Date(scheme.fdMaturityDate) > now) {
-        return res.status(400).json({
-          success: false,
-          message: "FD scheme has not matured yet",
-        });
-      }
 
-      if (scheme.fdAccountStatus === "closed") {
-        return res.status(400).json({
-          success: false,
-          message: "FD scheme already closed",
-        });
-      }
 
-      // Pay out maturity amount
-      payoutAmount = Number(scheme.fdMaturityAmount) || 0;
+    }
 
-      if (payoutAmount <= 0) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid maturity amount",
-        });
-      }
 
-      // Mark FD as closed
-      scheme.fdAccountStatus = "closed";
-    } else {
+
+    // else if (transactionType === "maturityPayout") {
+    //   const now = new Date();
+
+    //   if (!scheme.fdMaturityDate || new Date(scheme.fdMaturityDate) > now) {
+    //     return res.status(400).json({
+    //       success: false,
+    //       message: "FD scheme has not matured yet",
+    //     });
+    //   }
+
+    //   if (scheme.fdAccountStatus === "closed") {
+    //     return res.status(400).json({
+    //       success: false,
+    //       message: "FD scheme already closed",
+    //     });
+    //   }
+
+
+    //   payoutAmount = Number(scheme.fdMaturityAmount) || 0;
+
+    //   if (payoutAmount <= 0) {
+    //     return res.status(400).json({
+    //       success: false,
+    //       message: "Invalid maturity amount",
+    //     });
+    //   }
+
+
+    //   scheme.fdAccountStatus = "closed";
+    // }
+
+
+
+    else {
       return res.status(400).json({
         success: false,
         message: "Invalid transaction type",
@@ -323,27 +323,27 @@ exports.loanEmiTransaction = async (req, res) => {
     const transactionId = await generateTransactionId("LOAN");
 
     // 6. Update loan details
-    scheme.loanTotalEmiDeposited =
-      Number(scheme.loanTotalEmiDeposited || 0) + Number(amount);
+    // scheme.loanTotalEmiDeposited =
+    //   Number(scheme.loanTotalEmiDeposited || 0) + Number(amount);
 
-    scheme.loanTotalNumberOfEmiDeposited =
-      Number(scheme.loanTotalNumberOfEmiDeposited || 0) + 1;
+    // scheme.loanTotalNumberOfEmiDeposited =
+    //   Number(scheme.loanTotalNumberOfEmiDeposited || 0) + 1;
 
-    scheme.loanRemainingEmis =
-      Number(scheme.loanTotalEmis) - Number(scheme.loanTotalNumberOfEmiDeposited);
+    // scheme.loanRemainingEmis =
+    //   Number(scheme.loanTotalEmis) - Number(scheme.loanTotalNumberOfEmiDeposited);
 
-    scheme.loanLastEmiDate = new Date();
+    // scheme.loanLastEmiDate = new Date();
 
-    // Example: next EMI date 30 days later
-    scheme.loanNextEmiDate = new Date();
-    scheme.loanNextEmiDate.setDate(scheme.loanNextEmiDate.getDate() + 30);
+    // // Example: next EMI date 30 days later
+    // scheme.loanNextEmiDate = new Date();
+    // scheme.loanNextEmiDate.setDate(scheme.loanNextEmiDate.getDate() + 30);
 
-    // ✅ If all EMIs are paid, mark loan closed
-    if (scheme.loanRemainingEmis <= 0) {
-      scheme.status = "closed";
-      scheme.loanRemainingEmis = 0;
-      scheme.loanClosingDate= new Date()
-    }
+    // // ✅ If all EMIs are paid, mark loan closed
+    // if (scheme.loanRemainingEmis <= 0) {
+    //   scheme.status = "closed";
+    //   scheme.loanRemainingEmis = 0;
+    //   scheme.loanClosingDate= new Date()
+    // }
 
     // 7. Create transaction record
     const transaction = await Transaction.create({
@@ -412,27 +412,27 @@ exports.pigmyEmiTransaction = async (req, res) => {
     }
 
     // 3. Check if account is already closed
-    if (pigmy.pigMyAccountStatus === "closed") {
+    if (pigmy.pigMyAccountStatus === "closed" || pigmy.pigMyAccountStatus === "matured") {
       return res.status(400).json({
         success: false,
-        message: "This pigmy account is already closed",
+        message: `This pigmy account is already ${pigmy.pigMyAccountStatus} `,
       });
     }
 
     // 4. Check if maturity date has passed
-    const today = new Date();
-    const maturityDate = new Date(pigmy.pigMyMaturityDate);
+    // const today = new Date();
+    // const maturityDate = new Date(pigmy.pigMyMaturityDate);
 
-    if (today >= maturityDate) {
-      pigmy.pigMyAccountStatus = "matured";
-      await customer.save();
+    // if (today >= maturityDate) {
+    //   pigmy.pigMyAccountStatus = "matured";
+    //   await customer.save();
 
-      return res.status(400).json({
-        success: false,
-        message: "This pigmy account has matured. No more deposits allowed.",
-        pigmy,
-      });
-    }
+    //   return res.status(400).json({
+    //     success: false,
+    //     message: "This pigmy account has matured. No more deposits allowed.",
+    //     pigmy,
+    //   });
+    // }
 
     // 5. Validate daily deposit amount
     const expectedDeposit = Number(pigmy.pigmyDailyDeposit) || 0;
@@ -446,14 +446,14 @@ exports.pigmyEmiTransaction = async (req, res) => {
     // 6. Generate transaction ID
     const transactionId = await generateTransactionId("PIGMY");
 
-    // 7. Update pigmy account
-    pigmy.pigMyTotalDepositedAmount =
-      Number(pigmy.pigMyTotalDepositedAmount || 0) + Number(amount);
+    // // 7. Update pigmy account
+    // pigmy.pigMyTotalDepositedAmount =
+    //   Number(pigmy.pigMyTotalDepositedAmount || 0) + Number(amount);
 
-    pigmy.pigMyTotalInstallmentDeposited =
-      Number(pigmy.pigMyTotalInstallmentDeposited || 0) + 1;
+    // pigmy.pigMyTotalInstallmentDeposited =
+    //   Number(pigmy.pigMyTotalInstallmentDeposited || 0) + 1;
 
-    pigmy.pigMyAccountStatus = "active";
+    // pigmy.pigMyAccountStatus = "active";
 
     // 8. Save transaction
     const transaction = await Transaction.create({
@@ -464,7 +464,7 @@ exports.pigmyEmiTransaction = async (req, res) => {
       transactionType: "emi",
       amount,
       mode,
-      installmentNo: pigmy.pigMyTotalInstallmentDeposited,
+      installmentNo: pigmy.pigMyTotalInstallmentDeposited + 1,
       agentId,
       managerId: customer.managerId,
       status: "pending", // approval workflow
@@ -727,7 +727,7 @@ exports.TransactionApproval = async (req, res) => {
         success: false,
         message: "Transaction not found",
       });
-    } 
+    }
 
     if (transaction.status !== "pending") {
       return res.status(400).json({
@@ -736,149 +736,199 @@ exports.TransactionApproval = async (req, res) => {
       });
     }
 
+    // ✅ update transaction status
     transaction.status = status;
     transaction.managerId = managerId;
     if (remarks) transaction.remarks = remarks;
     await transaction.save();
 
-    // ---- Handle RD Maturity Payout ----
-    if (
-      transaction.schemeType === "RD" &&
-      transaction.transactionType === "maturityPayout"
-    ) {
-      const customer = await Customer.findById(transaction.customerId);
-      if (customer) {
-        const scheme = customer.rdSchemes.find(
-          (s) => s.rdAccountNumber === transaction.accountNumber
-        );
+    // ✅ Fetch customer for further scheme updates
+    const customer = await Customer.findById(transaction.customerId);
 
-        if (scheme) {
-          if (status === "approved") {
-            // ✅ On approval, close the RD account
-            scheme.rdAccountStatus = "closed";
-            scheme.rdCloseDate = new Date();
-          } else if (status === "rejected") {
-            // ❌ On rejection, reset any payout impact
-            scheme.rdAccountStatus = "active"; // keep active since payout not processed
-            scheme.rdCloseDate = null;
-
-            // Optional: revert any maturity-related updates if applied before
-            if (transaction.amount && scheme.rdDepositAmount) {
-              scheme.rdDepositAmount =
-                (scheme.rdDepositAmount || 0) - transaction.amount;
-              if (scheme.rdDepositAmount < 0) scheme.rdDepositAmount = 0;
-            }
-          }
-          await customer.save();
-        }
-      }
-    }
-
-    // ---- Handle FD Maturity Payout ----
-    else if (
-      transaction.schemeType === "FD" &&
-      transaction.transactionType === "maturityPayout"
-    ) {
-      const customer = await Customer.findById(transaction.customerId);
-      if (customer) {
-        const scheme = customer.fdSchemes.find(
-          (s) => s.fdAccountNumber === transaction.accountNumber
-        );
-
-        if (scheme) {
-          if (status === "approved") {
-            // ✅ On approval, close the FD account
-            scheme.fdAccountStatus = "closed";
-            scheme.fdCloseDate = new Date();
-          } else if (status === "rejected") {
-            // ❌ On rejection, keep FD active since payout didn’t process
-            scheme.fdAccountStatus = "active";
-            scheme.fdCloseDate = null;
-
-            // Optional: revert maturity amount adjustments if already done
-            if (transaction.amount && scheme.fdDepositAmount) {
-              scheme.fdDepositAmount =
-                (scheme.fdDepositAmount || 0) - transaction.amount;
-              if (scheme.fdDepositAmount < 0) scheme.fdDepositAmount = 0;
-            }
-          }
-          await customer.save();
-        }
-      }
-    }
-
-    // ---- Handle Rejected Deposit ----
-    else if (
-      transaction.transactionType === "deposit" &&
-      status === "rejected"
-    ) {
-      const customer = await Customer.findById(transaction.customerId);
-      if (customer) {
-        if (transaction.schemeType === "RD") {
-          const scheme = customer.rdSchemes.find(
-            (s) => s.rdAccountNumber === transaction.accountNumber
-          );
-          if (scheme) {
-            // ❌ Do nothing on rejection
-            // (deposit was never added before approval)
-          }
-        } else if (transaction.schemeType === "FD") {
+    if (customer) {
+      switch (transaction.schemeType) {
+        // ---------------- FD ----------------
+        case "FD": {
           const scheme = customer.fdSchemes.find(
             (s) => s.fdAccountNumber === transaction.accountNumber
           );
           if (scheme) {
-            // ❌ Do nothing on rejection
-            // (deposit was never added before approval)
-          }
-        }
-      }
-    }
-    else if (transaction.transactionType === "deposit") {
-      const customer = await Customer.findById(transaction.customerId);
-      if (customer) {
-        if (transaction.schemeType === "RD") {
-          const scheme = customer.rdSchemes.find(
-            (s) => s.rdAccountNumber === transaction.accountNumber
-          );
-          if (scheme) {
-            if (status === "approved") {
-              // ✅ Add deposit amount
-              scheme.rdTotalDepositedtAmount =
-                (scheme.rdTotalDepositedtAmount || 0) + transaction.amount;
+            // if (transaction.transactionType === "maturityPayout") {
+            //   if (status === "approved") {
+            //     scheme.fdAccountStatus = "closed";
+            //     scheme.fdCloseDate = new Date();
+            //   } else {
+            //     scheme.fdAccountStatus = "active";
+            //     scheme.fdCloseDate = null;
+            //   }
+            // } else
 
-              scheme.rdTotalDepositedInstallment =
-                (scheme.rdTotalDepositedInstallment || 0) + 1;
+            if (transaction.transactionType === "deposit") {
+              if (status === "approved") {
+                scheme.fdDepositAmount =
+                  Number(scheme.fdDepositAmount || 0) + Number(transaction.amount || 0);
 
-              // Activate RD if first deposit
-              if (scheme.rdTotalDepositedtAmount > 0 && scheme.rdAccountStatus === "pending") {
-                scheme.rdAccountStatus = "active";
-              }
-            }
-            // ❌ On rejection → do nothing
-            await customer.save();
-          }
-        } else if (transaction.schemeType === "FD") {
-          const scheme = customer.fdSchemes.find(
-            (s) => s.fdAccountNumber === transaction.accountNumber
-          );
-          if (scheme) {
-            if (status === "approved") {
-              // ✅ Add deposit amount
-              scheme.fdDepositAmount =
-                (scheme.fdDepositAmount || 0) + transaction.amount;
-
-              // Mark active once principal fully deposited
-              if (scheme.fdDepositAmount >= scheme.fdPrincipalAmount) {
                 scheme.fdAccountStatus = "active";
               }
+              // rejected → do nothing
             }
-            // ❌ On rejection → do nothing
-            await customer.save();
           }
+          break;
+        }
+
+        // ---------------- RD ----------------
+        case "RD": {
+          const scheme = customer.rdSchemes.find(
+            (s) => s.rdAccountNumber === transaction.accountNumber
+          );
+          if (scheme) {
+            // if (transaction.transactionType === "maturityPayout") {
+            //   if (status === "approved") {
+            //     scheme.rdAccountStatus = "closed";
+            //     scheme.rdCloseDate = new Date();
+            //   } else {
+            //     scheme.rdAccountStatus = "active";
+            //     scheme.rdCloseDate = null;
+            //   }
+            // } else
+
+            if (transaction.transactionType === "emi") {
+              if (status === "approved") {
+                scheme.rdTotalDepositedtAmount =
+                  (scheme.rdTotalDepositedtAmount || 0) + transaction.amount;
+                scheme.rdTotalDepositedInstallment =
+                  (scheme.rdTotalDepositedInstallment || 0) + 1;
+
+                // 🔹 Calculate next EMI date
+                if (!scheme.rdNextEmiDate) {
+                  scheme.rdNextEmiDate = new Date();
+                }
+
+                const nextDate = new Date(scheme.rdNextEmiDate);
+                nextDate.setMonth(nextDate.getMonth() + 1); // assuming monthly RD
+                scheme.rdNextEmiDate = nextDate;
+
+
+
+                if (
+                  scheme.rdTotalDepositedtAmount > 0 &&
+                  scheme.rdAccountStatus === "pending"
+                ) {
+                  scheme.rdAccountStatus = "active";
+                }
+
+                // 🔹 Check maturity
+                if (scheme.rdMaturityDate && new Date(scheme.rdNextEmiDate) > new Date(scheme.rdMaturityDate)) {
+                  scheme.rdAccountStatus = "matured";
+                }
+
+
+              }
+              // rejected → do nothing
+            }
+          }
+          break;
+        }
+
+        // ---------------- LOAN ----------------
+        case "LOAN": {
+          const scheme = customer.loans.find(
+            (s) => s.loanAccountNumber === transaction.accountNumber
+          );
+          if (scheme) {
+            // if (transaction.transactionType === "disbursement") {
+            //   if (status === "approved") {
+            //     scheme.loanDisbursed = true;
+            //     scheme.loanStatus = "active";
+            //   } else {
+            //     scheme.loanDisbursed = false;
+            //     scheme.loanStatus = "rejected";
+            //   }
+            // } else
+
+            if (transaction.transactionType === "emi") {
+              if (status === "approved") {
+                scheme.loanOutstandingAmount =
+                  (scheme.loanOutstandingAmount || 0) - transaction.amount;
+                scheme.loanTotalNumberOfEmiDeposited =
+                  (Number(scheme.loanTotalNumberOfEmiDeposited) || 0) + 1;
+                scheme.loanRemainingEmis =
+                  (scheme.loanRemainingEmis || 0) - 1;
+
+
+                // 6. Update loan details
+                scheme.loanTotalEmiDeposited =
+                  Number(scheme.loanTotalEmiDeposited || 0) + Number(transaction.amount);
+
+                // // Example: next EMI date 30 days later
+                scheme.loanNextEmiDate = new Date();
+                scheme.loanNextEmiDate.setDate(scheme.loanNextEmiDate.getDate() + 30);
+
+                // // ✅ If all EMIs are paid, mark loan closed
+                if (scheme.loanRemainingEmis <= 0) {
+                  scheme.loanStatus = "closed";
+                  scheme.loanRemainingEmis = 0;
+                  scheme.loanClosingDate = new Date()
+                }
+
+              }
+
+
+
+              // rejected → do nothing
+            }
+          }
+          break;
+        }
+
+        // ---------------- PIGMY ----------------
+        case "PIGMY": {
+          const scheme = customer.pigmy.find(
+            (s) => s.pigMyAccountNumber === transaction.accountNumber
+          );
+          if (scheme) {
+            if (transaction.transactionType === "emi") {
+              if (status === "approved") {
+
+
+                // // 7. Update pigmy account
+                scheme.pigMyTotalDepositedAmount =
+                  Number(scheme.pigMyTotalDepositedAmount || 0) + Number(transaction.amount);
+
+                scheme.pigMyTotalInstallmentDeposited =
+                  Number(scheme.pigMyTotalInstallmentDeposited || 0) + 1;
+
+                scheme.pigMyAccountStatus = "active";
+
+                // 4. Check if maturity date has passed
+                const today = new Date();
+                const maturityDate = new Date(scheme.pigMyMaturityDate);
+
+                if (today >= maturityDate) {
+                  scheme.pigMyAccountStatus = "matured";
+                  // await customer.save();
+
+
+                }
+
+              }
+              // rejected → do nothing
+              // } else if (transaction.transactionType === "withdrawal") {
+              //   if (status === "approved") {
+              //     scheme.pigmyTotalDeposited =
+              //       (scheme.pigmyTotalDeposited || 0) - transaction.amount;
+              //   }
+              // rejected → do nothing
+            }
+          }
+          break;
         }
       }
-    }
 
+      // save updated customer
+      await customer.save({ validateBeforeSave: false });
+
+    }
 
     res.json({
       success: true,
@@ -886,6 +936,7 @@ exports.TransactionApproval = async (req, res) => {
       data: transaction,
     });
   } catch (error) {
+    console.error("TransactionApproval Error:", error);
     res.status(500).json({
       success: false,
       message: "Server Error",
@@ -893,3 +944,4 @@ exports.TransactionApproval = async (req, res) => {
     });
   }
 };
+

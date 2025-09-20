@@ -156,7 +156,7 @@ const coustomerSchema = new Schema(
         pigMyAccountStatus: {
           type: String,
           enum: ["active", "closed", "pending", "matured"],
-          default: "active",
+          default: "pending",
         },
       }
     ]

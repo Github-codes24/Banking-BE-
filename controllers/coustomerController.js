@@ -199,8 +199,8 @@ exports.updateCustomer = async (req, res) => {
 
     // ✅ Update customer
     const customer = await Customer.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true,
+      new: true
+     
     }).select("-password"); // don’t return password in response
 
     if (!customer) {
@@ -637,7 +637,7 @@ exports.createRD = async (req, res) => {
       rdTotalDepositedtAmount: 0,
       rdTotalInstallments: rdTenure,
       rdMaturityAmount: maturityAmount.toFixed(2),
-      rdAccountStatus: "active",
+      rdAccountStatus: "pending",
     };
 
     // ✅ Push to rdSchemes array
@@ -662,9 +662,7 @@ exports.createRD = async (req, res) => {
 
 exports.createLoan = async (req, res) => {
   try {
-
     const { customerId } = req.params; // pass customerId in URL
-
 
     // ✅ Find customer
     const customer = await Customer.findOne({ CustomerId: customerId });
@@ -712,8 +710,7 @@ exports.createLoan = async (req, res) => {
     }
     totalEmisCount = Math.round(totalEmisCount);
 
-    // 2. Calculate estimated EMI amount using a simple interest formula as an example
-    // You can replace with your actual interest calculation logic
+    // 2. Calculate estimated EMI amount using a simple interest formula
     const assumedInterestRate = 10; // Annual interest rate in percent (example)
     const principal = parseFloat(loanPrincipalAmount);
     const tenureInYears =
@@ -729,7 +726,7 @@ exports.createLoan = async (req, res) => {
     // 3. Set dates - opening and disbursement dates as today, no EMIs paid yet
     const today = new Date();
 
-    // 4. Calculate next EMI date based on EMI frequency
+    // 4. Calculate next EMI date
     let nextEmiDate = new Date(today);
     switch (loanEMIFrequency) {
       case "monthly":
@@ -743,27 +740,49 @@ exports.createLoan = async (req, res) => {
         break;
     }
 
-    // 5. Compose new Loan object with all calculated and default values
+    // 5. Calculate last EMI date
+    let lastEmiDate = new Date(today);
+    switch (loanEMIFrequency) {
+      case "monthly":
+        lastEmiDate.setMonth(lastEmiDate.getMonth() + (totalEmisCount - 1));
+        break;
+      case "quarterly":
+        lastEmiDate.setMonth(lastEmiDate.getMonth() + (totalEmisCount - 1) * 3);
+        break;
+      case "yearly":
+        lastEmiDate.setFullYear(lastEmiDate.getFullYear() + (totalEmisCount - 1));
+        break;
+      case "weekly":
+        lastEmiDate.setDate(lastEmiDate.getDate() + (totalEmisCount - 1) * 7);
+        break;
+      case "daily":
+        lastEmiDate.setDate(lastEmiDate.getDate() + (totalEmisCount - 1));
+        break;
+      default:
+        lastEmiDate = today;
+    }
+
+    // 6. Compose new Loan object
     const newLoan = {
-      loanAccountNumber: `LN${Date.now()}`, // Generate a simple unique loan account number
+      loanAccountNumber: `LN${Date.now()}`,
       loanOpeningDate: today,
       loanPrincipalAmount: loanPrincipalAmount.toString(),
       loanDisbursementDate: today,
       loanOutstandingAmount: totalAmount,
-      loanEMIAmount: Math.round(emiAmount * 100) / 100, // Rounded to 2 decimals
+      loanEMIAmount: Math.round(emiAmount * 100) / 100,
       loanEMIFrequency,
       loanTotalEmiDeposited: "0",
       loanTotalNumberOfEmiDeposited: "0",
       loanInterestRate: assumedInterestRate.toString(),
-      loanType: "personal", // You can choose to set default or pass this later
+      loanType: loanType || "personal",
       loanStatus: "active",
       loanTenure: loanTenure.toString(),
       loanTenureType,
       loanRemainingEmis: totalEmisCount,
       loanTotalEmis: totalEmisCount.toString(),
-      loanLastEmiDate: null,
+      loanLastEmiDate: lastEmiDate,
       loanNextEmiDate: nextEmiDate,
-      loandDisbursed: true,
+      loanDisbursed: true,
     };
 
     customer.loans.push(newLoan);
@@ -882,7 +901,7 @@ exports.createPigmy = async (req, res) => {
       pigMyTotalInstallmentDeposited: "0",
       pigmyDailyDeposit: pigmyDailyDeposit.toString(),
       pigMyMaturityAmount: maturityAmount.toFixed(2).toString(),
-      pigMyAccountStatus: "active",
+      pigMyAccountStatus: "pending",
     };
     customer.pigmy.push(newPigmy)
     await customer.save();
