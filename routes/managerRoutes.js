@@ -15,15 +15,16 @@ const {
   makeAgentBlock,
   makeAgentUnBlock
 } = require("../controllers/managerController");
-const { authCheck } = require("../middilewares/authCheck");
+const upload = require("../utils/multer");
 
-router.post("/register", registerManager);
+router.post("/register",upload.single("signature"), registerManager);
 router.post("/login", loginManager);
 
 router.route("/").get(getManagers);
 
-router.route("/:id").get(getManager).put(updateManager).delete(deleteManager);
-
+router.route("/:id").get(getManager).delete(deleteManager);
+// router.route("/:id",upload.single("signature"),).put(updateManager);
+router.put("/:id", upload.single("signature"), updateManager);
 router.post("/password-otp", updatePasswordOtp);
 // router.put('/password-otp',  updatePasswordOtp);
 router.post("/verify-otp", verifyOtp);

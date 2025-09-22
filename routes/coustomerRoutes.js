@@ -20,12 +20,14 @@ const {
 
 const router = require("express").Router();
 
+const upload = require("../utils/multer");
+
 router.get("/", getCustomers);
 // GET /api/customers?page=1&limit=5&name=Ramesh&branch=Bangalore&schemeType=FD
 
 router.get("/:id", getCustomerById);
-router.post("/", createCustomer);
-router.put("/:id", updateCustomer);
+router.post("/", upload.single("signature"), createCustomer);
+router.put("/:id",upload.single("signature"), updateCustomer);
 router.delete("/:id", deleteCustomer);
 
 

@@ -1,11 +1,11 @@
 const express = require("express");
 const router = express.Router();
 const agentController = require("../controllers/agentController");
-
-router.post("/", agentController.createAgent);
+const upload = require("../utils/multer");
+router.post("/", upload.single("signature"), agentController.createAgent);
 router.get("/", agentController.getAgents);
 router.get("/:id", agentController.getAgentById);
-router.put("/:id", agentController.updateAgent);
+router.put("/:id", upload.single("signature"), agentController.updateAgent);
 router.delete("/:id", agentController.deleteAgent);
 router.post("/login", agentController.loginAgent);
 router.get("/getCoustomer/:agentId", agentController.getCustomer);

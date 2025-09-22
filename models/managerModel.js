@@ -8,13 +8,13 @@ const managerSchema = new Schema(
     contact: {
       type: String,
       required: true,
-        unique: true,
+      unique: true,
       match: [/^\d{10}$/, "Please enter a valid 10-digit mobile number"],
     },
 
     email: {
       type: String,
-        unique: true,
+      unique: true,
       unique: true,
     },
 
@@ -23,18 +23,49 @@ const managerSchema = new Schema(
     address: { type: String, maxlength: 200 },
 
     education: { type: String },
+  AadharNo: {
+      type: String,
+      minlength: 12,
+      maxlength: 12,
+      match: [/^\d{12}$/, "Aadhar number must be 12 digits"],
+    },
+    panCard: { type: String },
+    signature: {
+      type: String
+    }
+    ,
+    NomineeDetails: {
+      name: { type: String },
+      relation: { type: String },
+      age: { type: String },
+      dob: { type: Date },
+      email: { type: String },
+      mobile: {
+        type: String,
+        match: [/^\d{10}$/, "Please enter a valid 10-digit mobile number"],
+      },
+      AadharNo: {
+        type: String,
+        minlength: 12,
+        maxlength: 12,
+        match: [/^\d{12}$/, "Aadhar number must be 12 digits"],
+      },
+      panCard: { type: String },
+      address: { type: String },
+    },
+
 
     alternateNumber: {
       type: String,
-    
+
       match: [/^\d{10}$/, "Please enter a valid 10-digit mobile number"],
     },
     resetPasswordOtp: { type: String },
     resetPasswordOtpExpires: { type: Date },
     otpVerified: { type: Boolean, default: false },
-  password: { type: String, required: true },
+    password: { type: String },
     branch: { type: mongoose.Schema.Types.ObjectId, ref: "Branch" },
-      bank:{type:String,default:"Maa Anusaya Urban"}
+    bank: { type: String, default: "Maa Anusaya Urban" }
   },
   { timestamps: true } // ✅ Correct placement of schema options
 );

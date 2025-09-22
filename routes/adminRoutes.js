@@ -39,12 +39,13 @@ const {
   changePassword
 } = require("../controllers/adminController");
 const upload = require("../utils/multer");
+const { authCheck } = require("../middilewares/authCheck");
 
 router.post("/", createAdmin);
 router.post("/login", loginAdmin);
 
 // if you have exsting password
-router.post("/passwordChange", adminPasswordChange);
+router.post("/passwordChange", authCheck, adminPasswordChange);
 
 router.get("/get", getAdmin);
 

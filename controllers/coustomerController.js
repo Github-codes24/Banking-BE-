@@ -4,22 +4,26 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const otpGenerator = require("otp-generator");
 const mongoose = require("mongoose")
-
+const uploadToCloudinary = require("../utils/cloudinary");
 const moment = require("moment");
 
-// @desc    Get all customers
+
+
 exports.getCustomers = async (req, res) => {
   try {
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 10;
+
     const {
       fromDate,
       toDate,
-      search, // ✅ instead of name & contact
+      search,
       branch,
       schemeType,
       managerId,
       agentId,
+      areaManagerId,
+      all, // ✅ new param
     } = req.query;
 
     const filter = {};
@@ -63,15 +67,37 @@ exports.getCustomers = async (req, res) => {
       filter.agentId = agentId;
     }
 
+    // 🔹 Area Manager filter
+    if (areaManagerId && mongoose.Types.ObjectId.isValid(areaManagerId)) {
+      filter.areaManagerId = areaManagerId;
+    }
+
     const total = await Customer.countDocuments(filter);
 
-    const customers = await Customer.find(filter)
+    let query = Customer.find(filter)
       .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit)
       .populate("branch", "name")
       .populate("managerId", "name")
-      .populate("agentId", "name");
+      .populate("agentId", "name")
+      .populate("areaManagerId", "name");
+
+    // ✅ If all=true → return all customers without pagination
+    if (all === "true") {
+      const customers = await query;
+      return res.status(200).json({
+        success: true,
+        count: customers.length,
+        pagination: {
+          totalItems: total,
+          currentPage: null,
+          totalPages: 1,
+        },
+        data: customers,
+      });
+    }
+
+    // ✅ Paginated result
+    const customers = await query.skip((page - 1) * limit).limit(limit);
 
     res.status(200).json({
       success: true,
@@ -100,6 +126,8 @@ exports.getCustomerById = async (req, res) => {
   try {
     const customer = await Customer.findById(req.params.id)
       .populate("agentId", "name email contact") // 👈 populate agent details
+      .populate("managerId", "name email contact") // 👈 populate agent details
+      .populate("areaManagerId", "name email contact") // 👈 populate agent details
       .exec();
 
     if (!customer) {
@@ -129,9 +157,25 @@ exports.createCustomer = async (req, res) => {
       return res.status(404).json({ success: false, error: "Agent not found" });
     }
 
+
+    let signature;
+
+if (req.file) {
+  try {
+    const upload = await uploadToCloudinary(req.file.path, req.file.originalname);
+    signature = upload?.url; // Cloudinary usually returns `secure_url`
+    req.body.signature = signature;
+  } catch (error) {
+    console.error("Cloudinary upload failed:", error);
+    return res.status(500).json({ message: "File upload failed" });
+  }
+}
+
+
     // Attach branch & manager info from Agent
     req.body.branch = agent.branch;
     req.body.managerId = agent.managerId;
+    req.body.areaManagerId = agent.areaManagerId;
 
     // ✅ Generate unique 8-digit CustomerId
     const lastCustomer = await Customer.findOne().sort({ createdAt: -1 });
@@ -190,6 +234,7 @@ exports.updateCustomer = async (req, res) => {
       }
       req.body.branch = agent.branch;
       req.body.managerId = agent.managerId;
+      req.body.areaManagerId = agent.areaManagerId;
     }
 
     // ✅ Hash password if updating
@@ -197,10 +242,24 @@ exports.updateCustomer = async (req, res) => {
       req.body.password = await bcrypt.hash(password, 10);
     }
 
+    let signature;
+
+if (req.file) {
+  try {
+    const upload = await uploadToCloudinary(req.file.path, req.file.originalname);
+    signature = upload?.url; // Cloudinary usually returns `secure_url`
+    req.body.signature = signature;
+  } catch (error) {
+    console.error("Cloudinary upload failed:", error);
+    return res.status(500).json({ message: "File upload failed" });
+  }
+}
+
+
     // ✅ Update customer
     const customer = await Customer.findByIdAndUpdate(req.params.id, req.body, {
       new: true
-     
+
     }).select("-password"); // don’t return password in response
 
     if (!customer) {

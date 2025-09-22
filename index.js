@@ -28,6 +28,7 @@ const AdminRoutes = require("./routes/adminRoutes")
 const BranchRoutes = require("./routes/branchRoutes")
 const TransactionSchemesRoutes = require("./routes/transactionSchemesRoutes")
 const LedgerRoutes = require("./routes/ledgerRoutes")
+const AreaManagerRoutes = require("./routes/areaManagerRoutes")
 
 
 app.get("/", (req, res) => {
@@ -41,6 +42,7 @@ app.use("/api/agent" , AgentRoutes)
 app.use("/api/branch" , BranchRoutes)
 app.use("/api/transactionSchemes" , TransactionSchemesRoutes)
 app.use("/api/ledger" , LedgerRoutes)
+app.use("/api/areaManager" , AreaManagerRoutes)
 
 
 

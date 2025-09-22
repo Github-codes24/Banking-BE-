@@ -28,11 +28,44 @@ const agentSchema = new Schema(
       match: [/^\d{10}$/, "Please enter a valid 10-digit mobile number"],
     },
 
-    password: { type: String ,required: true},
+      AadharNo: {
+      type: String,
+      minlength: 12,
+      maxlength: 12,
+      match: [/^\d{12}$/, "Aadhar number must be 12 digits"],
+    },
+    panCard: { type: String },
+    signature: {
+      type: String
+    }
+    ,
+    NomineeDetails: {
+      name: { type: String },
+      relation: { type: String },
+      age: { type: String },
+      dob: { type: Date },
+      email: { type: String },
+      mobile: {
+        type: String,
+        match: [/^\d{10}$/, "Please enter a valid 10-digit mobile number"],
+      },
+      AadharNo: {
+        type: String,
+        minlength: 12,
+        maxlength: 12,
+        match: [/^\d{12}$/, "Aadhar number must be 12 digits"],
+      },
+      panCard: { type: String },
+      address: { type: String },
+    },
+
+
+    password: { type: String },
     resetPasswordOtp: { type: String },
     resetPasswordOtpExpires: { type: Date },
     otpVerified: { type: Boolean, default: false },
     managerId: { type: Schema.Types.ObjectId,required:true, ref: "Manager" },
+    areaManagerId: { type: Schema.Types.ObjectId,required:true, ref: "AreaManager" },
     branch: { type: mongoose.Schema.Types.ObjectId, ref: "Branch" },
     isActive: { type: Boolean, default: true },
     bank: { type: String, default: "Maa Anusaya Urban" },

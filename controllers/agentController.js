@@ -2,7 +2,9 @@ const Agent = require("../models/agentModel");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const Manager = require("../models/managerModel");
+const AreaManager = require("../models/AreaManager");
 const Coustomer = require("../models/coustomerModel");
+const uploadToCloudinary = require("../utils/cloudinary");
 // Create Agent
 exports.createAgent = async (req, res) => {
   try {
@@ -11,15 +13,30 @@ exports.createAgent = async (req, res) => {
       const salt = await bcrypt.genSalt(10);
       req.body.password = await bcrypt.hash(req.body.password, salt);
     }
-    const managerId = req.body.managerId;
-    const manager = await Manager.findById(managerId);
+
+    let signature;
+
+    if (req.file) {
+      try {
+        const upload = await uploadToCloudinary(req.file.path, req.file.originalname);
+        signature = upload?.url; // Cloudinary usually returns `secure_url`
+        req.body.signature = signature;
+      } catch (error) {
+        console.error("Cloudinary upload failed:", error);
+        return res.status(500).json({ message: "File upload failed" });
+      }
+    }
+
+       const areaManagerId = req.body.areaManagerId;
+    const manager = await AreaManager.findById(areaManagerId);
     if (!manager) {
       return res
         .status(404)
         .json({ success: false, error: "manager not found" });
     }
     console.log(manager, "manager");
-    req.body.branch = manager.branch;
+
+    req.body.managerId = manager.managerId
     const agent = await Agent.create(req.body);
     res.status(201).json({ success: true, data: agent });
   } catch (err) {
@@ -99,7 +116,7 @@ exports.getAgents = async (req, res) => {
   try {
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 10;
-    const { search, branch, managerId, isActive, all } = req.query;
+    const { search, branch, managerId, areaManagerId, isActive, all } = req.query;
 
     const filter = {};
 
@@ -113,12 +130,14 @@ exports.getAgents = async (req, res) => {
 
     if (branch) filter.branch = branch;
     if (managerId) filter.managerId = managerId;
+    if (areaManagerId) filter.areaManagerId = areaManagerId; // ✅ New filter
     if (isActive !== undefined) filter.isActive = isActive === "true";
 
     const total = await Agent.countDocuments(filter);
 
     let query = Agent.find(filter)
       .populate("managerId", "name email")
+      .populate("areaManagerId", "name email") // ✅ populate areaManager
       .populate("branch", "name code")
       .sort({ createdAt: -1 });
 
@@ -162,6 +181,7 @@ exports.getAgentById = async (req, res) => {
   try {
     const agent = await Agent.findById(req.params.id)
       .populate("managerId", "name email")
+      .populate("areaManagerId", "name email")
       .populate("branch", "name code");
 
     if (!agent) {
@@ -184,15 +204,32 @@ exports.updateAgent = async (req, res) => {
       req.body.password = await bcrypt.hash(req.body.password, salt);
     }
 
-    const managerId = req.body.managerId;
-    const manager = await Manager.findById(managerId);
+    let signature;
+
+    if (req.file) {
+      try {
+        const upload = await uploadToCloudinary(req.file.path, req.file.originalname);
+        signature = upload?.url; // Cloudinary usually returns `secure_url`
+        req.body.signature = signature;
+      } catch (error) {
+        console.error("Cloudinary upload failed:", error);
+        return res.status(500).json({ message: "File upload failed" });
+      }
+    }
+
+
+    const areaManagerId = req.body.areaManagerId;
+    const manager = await AreaManager.findById(areaManagerId);
     if (!manager) {
       return res
         .status(404)
         .json({ success: false, error: "manager not found" });
     }
     console.log(manager, "manager");
-    req.body.branch = manager.branch;
+
+    req.body.managerId = manager.managerId
+
+    // req.body.branch = manager.branch;
 
     const agent = await Agent.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
@@ -216,7 +253,7 @@ exports.updateAgentMinimalInfo = async (req, res) => {
     const { agentId } = req.params;
 
     // Allow only minimal fields to be updated
-    const allowedUpdates = ["name", "email", "contact", "address","education","alternateNumber"];
+    const allowedUpdates = ["name", "email", "contact", "address", "education", "alternateNumber"];
     const updates = {};
 
     for (let key of allowedUpdates) {
@@ -289,12 +326,12 @@ exports.getCustomer = async (req, res) => {
     const search = req.query.search || "";
     const searchQuery = search
       ? {
-          $or: [
-            { name: { $regex: search, $options: "i" } },
-            { email: { $regex: search, $options: "i" } },
-            { phone: { $regex: search, $options: "i" } },
-          ],
-        }
+        $or: [
+          { name: { $regex: search, $options: "i" } },
+          { email: { $regex: search, $options: "i" } },
+          { phone: { $regex: search, $options: "i" } },
+        ],
+      }
       : {};
 
     // Base filter (customers under specific agent)

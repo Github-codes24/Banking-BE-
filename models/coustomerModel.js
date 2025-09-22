@@ -22,7 +22,8 @@ const coustomerSchema = new Schema(
 
     branch: { type: mongoose.Schema.Types.ObjectId, ref: "Branch" },
     bank: { type: String, default: "Maa Anusaya Urban" },
-    managerId: { type: mongoose.Schema.Types.ObjectId, ref: "Manager" }, // Manager responsible
+    areaManagerId: { type: Schema.Types.ObjectId, required: true, ref: "AreaManager" }, // Manager responsible
+    managerId: { type: Schema.Types.ObjectId, required: true, ref: "Manager" }, // Manager responsible
     agentId: { type: mongoose.Schema.Types.ObjectId, ref: "Agent" },
 
     //  account feild
@@ -142,7 +143,7 @@ const coustomerSchema = new Schema(
         type: { type: String },
         pigMyAccountNumber: { type: String },
         pigMyOpeningDate: { type: Date },
- pigMyCloseDate: { type: Date },
+        pigMyCloseDate: { type: Date },
         pigMyTenure: { type: String },
         pigMyTenureType: { type: String, enum: ["month", "year", "week"] },
         pigMyMaturityDate: { type: Date },
@@ -151,7 +152,7 @@ const coustomerSchema = new Schema(
         pigMyTotalDepositedAmount: { type: String },
         pigMyTotalInstallmentDeposited: { type: String },
         pigmyDailyDeposit: { type: String },
-// 
+        // 
         pigMyMaturityAmount: { type: String },
         pigMyAccountStatus: {
           type: String,
@@ -203,8 +204,19 @@ const coustomerSchema = new Schema(
 
     Mpin: { type: String },
 
-    password: { type: String, required: true },
+    password: { type: String },
 
+    AadharNo: {
+      type: String,
+      minlength: 12,
+      maxlength: 12,
+      match: [/^\d{12}$/, "Aadhar number must be 12 digits"],
+    },
+    panCard: { type: String },
+    signature: {
+      type: String
+    }
+    ,
     NomineeDetails: {
       name: { type: String },
       relation: { type: String },

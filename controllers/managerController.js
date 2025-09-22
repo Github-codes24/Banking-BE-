@@ -5,7 +5,8 @@ const sendOtpEmail = require("../utils/sendMail");
 // const Manager = require("../models/Manager"); // adjust path
 const crypto = require("crypto");
 const Agent = require("../models/agentModel");
-const Branch = require("../models/branchModel")
+const Branch = require("../models/branchModel");
+const uploadToCloudinary = require("../utils/cloudinary");
 
 exports.registerManager = async (req, res) => {
   try {
@@ -21,6 +22,19 @@ exports.registerManager = async (req, res) => {
         error: "Manager with this email or contact already exists",
       });
     }
+
+     let signature;
+
+if (req.file) {
+  try {
+    const upload = await uploadToCloudinary(req.file.path, req.file.originalname);
+    signature = upload?.url; // Cloudinary usually returns `secure_url`
+    req.body.signature = signature;
+  } catch (error) {
+    console.error("Cloudinary upload failed:", error);
+    return res.status(500).json({ message: "File upload failed" });
+  }
+}
 
     // Hash password
     const salt = await bcrypt.genSalt(10);
@@ -132,13 +146,14 @@ exports.getManagers = async (req, res) => {
       limit = 10,
       fromDate,
       toDate,
-      search, // New search parameter
+      search,
       name,
       contact,
       email,
       gender,
       education,
       sort = "-createdAt",
+      all, // NEW param
     } = req.query;
 
     // Build filter object
@@ -162,31 +177,39 @@ exports.getManagers = async (req, res) => {
         { alternateNumber: { $regex: search, $options: "i" } },
       ];
     } else {
-      // Individual field filters (only applied if no global search)
+      // Individual field filters
       if (name) filter.name = { $regex: name, $options: "i" };
       if (contact) filter.contact = contact;
       if (email) filter.email = email;
       if (education) filter.education = { $regex: education, $options: "i" };
     }
 
-    // Exact match filters (always applied)
     if (gender) filter.gender = gender;
 
-    // Get total count with filters
-    const total = await Manager.countDocuments(filter);
+    // If "all=true", return everything (skip pagination)
+    if (all === "true") {
+      const managers = await Manager.find(filter)
+        .select("-password")
+        .sort(sort);
 
-    // Calculate pagination
+      return res.status(200).json({
+        success: true,
+        count: managers.length,
+        data: managers,
+      });
+    }
+
+    // Else, use pagination
+    const total = await Manager.countDocuments(filter);
     const startIndex = (page - 1) * limit;
     const endIndex = page * limit;
 
-    // Execute query
     const managers = await Manager.find(filter)
       .select("-password")
       .sort(sort)
       .skip(startIndex)
-      .limit(limit);
+      .limit(parseInt(limit));
 
-    // Response
     res.status(200).json({
       success: true,
       count: managers.length,
@@ -209,6 +232,7 @@ exports.getManagers = async (req, res) => {
     });
   }
 };
+
 
 // @desc    Get single manager
 // @route   GET /api/managers/:id
@@ -251,9 +275,23 @@ exports.updateManager = async (req, res) => {
       updateData.password = await bcrypt.hash(password, salt);
     }
 
+ let signature;
+
+if (req.file) {
+  try {
+    const upload = await uploadToCloudinary(req.file.path, req.file.originalname);
+    signature = upload?.url; // Cloudinary usually returns `secure_url`
+    updateData.signature = signature;
+  } catch (error) {
+    console.error("Cloudinary upload failed:", error);
+    return res.status(500).json({ message: "File upload failed" });
+  }
+}
+
+
     const manager = await Manager.findByIdAndUpdate(req.params.id, updateData, {
       new: true,
-      runValidators: true,
+      // runValidators: true,
     }).select("-password"); // don’t expose password
 
     if (!manager) {
