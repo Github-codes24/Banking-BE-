@@ -9,7 +9,7 @@ const transactionSchemaForSchemes = new mongoose.Schema(
     },
     schemeType: {
       type: String,
-      enum: ["FD", "RD" ,"LOAN","PIGMY"],
+      enum: ["FD", "RD", "LOAN", "PIGMY"],
       required: true,
     },
     accountNumber: { type: String, required: true }, // FD/RD account number
@@ -24,7 +24,7 @@ const transactionSchemaForSchemes = new mongoose.Schema(
 
     mode: {
       type: String,
-      enum: ["cash", "bankTransfer", "upi", "cheque"],
+      enum: ["cash", "bankTransfer", "upi","cheque","card", "cheque"],
       required: true,
     },
 
@@ -39,7 +39,7 @@ const transactionSchemaForSchemes = new mongoose.Schema(
     },
 
     agentId: { type: mongoose.Schema.Types.ObjectId, ref: "Agent" },
-       managerId: { type: mongoose.Schema.Types.ObjectId, ref: "Manager" },
+    managerId: { type: mongoose.Schema.Types.ObjectId, ref: "Manager" },
 
     remarks: { type: String },
   },

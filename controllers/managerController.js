@@ -480,6 +480,8 @@ exports.changePassword = async (req, res) => {
 exports.getAgents = async (req, res) => {
   try {
     const { managerId } = req.params;
+    const { areaManagerId } = req.query; // get from query for flexibility
+
     if (!managerId) {
       return res.status(400).json({
         success: false,
@@ -496,16 +498,19 @@ exports.getAgents = async (req, res) => {
     const search = req.query.search || "";
     const searchQuery = search
       ? {
-        $or: [
-          { name: { $regex: search, $options: "i" } },
-          { email: { $regex: search, $options: "i" } },
-          { phone: { $regex: search, $options: "i" } }, // if phone field exists
-        ],
-      }
+          $or: [
+            { name: { $regex: search, $options: "i" } },
+            { email: { $regex: search, $options: "i" } },
+            { phone: { $regex: search, $options: "i" } }, // if phone field exists
+          ],
+        }
       : {};
 
-    // Base filter (agents under specific manager)
+    // Base filter
     const baseFilter = { managerId };
+    if (areaManagerId) {
+      baseFilter.areaManagerId = areaManagerId;
+    }
 
     // Combine filters
     const finalFilter = { ...baseFilter, ...searchQuery };
@@ -516,6 +521,7 @@ exports.getAgents = async (req, res) => {
     // Fetch agents
     const agents = await Agent.find(finalFilter)
       .populate("managerId", "name email")
+      .populate("areaManagerId", "name email") // populate area manager too
       .select("-password")
       .skip(skip)
       .limit(limit)
@@ -538,6 +544,7 @@ exports.getAgents = async (req, res) => {
     });
   }
 };
+
 // adjust path to your Manager model
 
 exports.changeManagerPassword = async (req, res) => {

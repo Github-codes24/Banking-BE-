@@ -564,7 +564,7 @@ exports.createFD = async (req, res) => {
     const {
       type,
       fdDepositAmount,
-      savingAccountNo,
+   
       fdTenure,
       fdTenureType, // "month", "year", or "day"
       fdMaturityInstruction, // autoRenewal, payout, renewPrincipalOnly
@@ -609,7 +609,7 @@ exports.createFD = async (req, res) => {
     // ✅ Create FD object
     const fdScheme = {
       type,
-      savingAccountNo,
+      savingAccountNo:customer.savingAccountNumber,
       fdAccountNumber,
       fdOpeningDate: openingDate,
       fdPrincipalAmount: principal,
@@ -625,7 +625,8 @@ exports.createFD = async (req, res) => {
 
     // ✅ Push to fdSchemes array
     customer.fdSchemes.push(fdScheme);
-    await customer.save();
+   await customer.save({ validateBeforeSave: false });
+
 
     res.status(201).json({
       success: true,
@@ -643,7 +644,7 @@ exports.createFD = async (req, res) => {
 exports.createRD = async (req, res) => {
   try {
     const { customerId } = req.params; // pass customerId in URL
-    const { savingAccountNo, rdTenure, type, rdInstallAmount } = req.body;
+    const {  rdTenure, type, rdInstallAmount } = req.body;
 
     // ✅ Find customer
     const customer = await Customer.findOne({ CustomerId: customerId });
@@ -689,7 +690,7 @@ exports.createRD = async (req, res) => {
       rdTenureType: "month",
       rdInterestRate: process.env.RD_INTREST_RATE || 6,
       rdInstallAmount: P,
-      savingAccountNo,
+      savingAccountNo:customer.savingAccountNumber,
       type,
       rdTotalDepositedInstallment: 0,
       rdInstallMentsFrequency: "monthly",
@@ -701,7 +702,7 @@ exports.createRD = async (req, res) => {
 
     // ✅ Push to rdSchemes array
     customer.rdSchemes.push(rdScheme);
-    await customer.save();
+    await customer.save({ validateBeforeSave: false });
 
     res.status(201).json({
       success: true,
@@ -845,7 +846,7 @@ exports.createLoan = async (req, res) => {
     };
 
     customer.loans.push(newLoan);
-    await customer.save();
+    await customer.save({validateBeforeSave:false});
 
     res.status(201).json({
       success: true,
@@ -963,7 +964,7 @@ exports.createPigmy = async (req, res) => {
       pigMyAccountStatus: "pending",
     };
     customer.pigmy.push(newPigmy)
-    await customer.save();
+    await customer.save({validateBeforeSave:false});
 
     res.status(201).json({
       success: true,

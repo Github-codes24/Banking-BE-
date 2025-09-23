@@ -33,7 +33,7 @@ exports.rdTransaction = async (req, res) => {
       transactionType,
       amount,
       mode,
-      agentId,
+      // agentId,
       remarks,
     } = req.body;
 
@@ -119,7 +119,7 @@ exports.rdTransaction = async (req, res) => {
       amount,
       mode,
       installmentNo: scheme.rdTotalDepositedInstallment + 1 || 0,
-      agentId,
+      agentId:customer.agentId,
       managerId: customer.managerId,
       remarks,
       status: "pending", // approval flow
@@ -240,7 +240,7 @@ exports.fdTransaction = async (req, res) => {
     }
 
     // Save updated scheme in customer
-    await customer.save();
+    await customer.save({validateBeforeSave:false});
     const transactionId = await generateTransactionId("FD");
     // Create transaction (pending until manager approves)
     const transaction = await Transaction.create({
@@ -253,7 +253,7 @@ exports.fdTransaction = async (req, res) => {
       transactionType,
       amount,
       mode,
-      agentId,
+      agentId:agentId||customer.agentId,
       // remarks,
       // balanceAfterTransaction: payoutAmount, // for FD it's just deposit/maturity
       status: "pending",
@@ -279,7 +279,7 @@ exports.loanEmiTransaction = async (req, res) => {
       loanAccountNumber,
       amount,
       mode,
-      agentId,
+      // agentId,
       // remarks,
     } = req.body;
 
@@ -355,14 +355,14 @@ exports.loanEmiTransaction = async (req, res) => {
       amount,
       mode,
       installmentNo: scheme.loanTotalNumberOfEmiDeposited,
-      agentId,
+      agentId:customer.agentId,
       managerId: customer.managerId,
       // remarks,
       status: "pending", // approval flow
     });
 
     // 8. Save updated customer
-    await customer.save();
+    await customer.save({validateBeforeSave:false});
 
     res.status(201).json({
       success: true,
@@ -389,7 +389,7 @@ exports.pigmyEmiTransaction = async (req, res) => {
       pigMyAccountNumber,
       amount,
       mode,
-      agentId,
+      // agentId,
     } = req.body;
 
     // 1. Find customer
@@ -465,13 +465,13 @@ exports.pigmyEmiTransaction = async (req, res) => {
       amount,
       mode,
       installmentNo: pigmy.pigMyTotalInstallmentDeposited + 1,
-      agentId,
+      agentId:customer.agentId,
       managerId: customer.managerId,
       status: "pending", // approval workflow
     });
 
     // 9. Save updated customer
-    await customer.save();
+    await customer.save({validateBeforeSave:false});
 
     res.status(201).json({
       success: true,
@@ -861,8 +861,10 @@ exports.TransactionApproval = async (req, res) => {
                   Number(scheme.loanTotalEmiDeposited || 0) + Number(transaction.amount);
 
                 // // Example: next EMI date 30 days later
-                scheme.loanNextEmiDate = new Date();
-                scheme.loanNextEmiDate.setDate(scheme.loanNextEmiDate.getDate() + 30);
+           const nextDate = new Date();
+nextDate.setDate(nextDate.getDate() + 30);
+scheme.loanNextEmiDate = nextDate;
+
 
                 // // ✅ If all EMIs are paid, mark loan closed
                 if (scheme.loanRemainingEmis <= 0) {
