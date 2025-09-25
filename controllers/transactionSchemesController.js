@@ -118,8 +118,10 @@ exports.rdTransaction = async (req, res) => {
       transactionType,
       amount,
       mode,
-      installmentNo: scheme.rdTotalDepositedInstallment + 1 || 0,
-      agentId:customer.agentId,
+      installmentNo: (Number(scheme?.rdTotalDepositedInstallment) || 0) + 1,
+
+      agentId: customer.agentId,
+      areaManagerId: customer.areaManagerId,
       managerId: customer.managerId,
       remarks,
       status: "pending", // approval flow
@@ -240,7 +242,7 @@ exports.fdTransaction = async (req, res) => {
     }
 
     // Save updated scheme in customer
-    await customer.save({validateBeforeSave:false});
+    await customer.save({ validateBeforeSave: false });
     const transactionId = await generateTransactionId("FD");
     // Create transaction (pending until manager approves)
     const transaction = await Transaction.create({
@@ -253,7 +255,8 @@ exports.fdTransaction = async (req, res) => {
       transactionType,
       amount,
       mode,
-      agentId:agentId||customer.agentId,
+      agentId: agentId || customer.agentId,
+      areaManagerId: customer?.areaManagerId || "",
       // remarks,
       // balanceAfterTransaction: payoutAmount, // for FD it's just deposit/maturity
       status: "pending",
@@ -354,15 +357,16 @@ exports.loanEmiTransaction = async (req, res) => {
       transactionType: "emi",
       amount,
       mode,
-      installmentNo: scheme.loanTotalNumberOfEmiDeposited,
-      agentId:customer.agentId,
+      installmentNo: (Number(scheme?.loanTotalNumberOfEmiDeposited) || 0) + 1,
+      areaManagerId: customer?.areaManagerId,
+      agentId: customer.agentId,
       managerId: customer.managerId,
       // remarks,
       status: "pending", // approval flow
     });
 
     // 8. Save updated customer
-    await customer.save({validateBeforeSave:false});
+    await customer.save({ validateBeforeSave: false });
 
     res.status(201).json({
       success: true,
@@ -459,19 +463,22 @@ exports.pigmyEmiTransaction = async (req, res) => {
     const transaction = await Transaction.create({
       transactionId,
       customerId,
+      areaManagerId: customer?.areaManagerId,
       schemeType: "PIGMY",
       accountNumber: pigMyAccountNumber,
       transactionType: "emi",
       amount,
       mode,
-      installmentNo: pigmy.pigMyTotalInstallmentDeposited + 1,
-      agentId:customer.agentId,
+      installmentNo: (Number(pigmy?.pigMyTotalInstallmentDeposited) || 0) + 1,
+
+
+      agentId: customer.agentId,
       managerId: customer.managerId,
       status: "pending", // approval workflow
     });
 
     // 9. Save updated customer
-    await customer.save({validateBeforeSave:false});
+    await customer.save({ validateBeforeSave: false });
 
     res.status(201).json({
       success: true,
@@ -610,11 +617,15 @@ exports.getTransaction = async (req, res) => {
       accountNumber,
       agentId,
       customerId,
+      areaManagerId,
       managerId,
       schemeType,
       transactionType,
       status,
-      search, // ✅ new
+      mode,
+      search, // ✅ free text search
+      fromDate, // ✅ new
+      toDate,   // ✅ new
       page = 1,
       limit = 10,
     } = req.query;
@@ -632,22 +643,40 @@ exports.getTransaction = async (req, res) => {
         $gte: moment().subtract(1, "days").startOf("day").toDate(),
         $lte: moment().subtract(1, "days").endOf("day").toDate(),
       };
+    } else if (fromDate && toDate) {
+      // ✅ Custom range
+      query.createdAt = {
+        $gte: moment(fromDate).startOf("day").toDate(),
+        $lte: moment(toDate).endOf("day").toDate(),
+      };
+    } else if (fromDate) {
+      // ✅ Only fromDate
+      query.createdAt = {
+        $gte: moment(fromDate).startOf("day").toDate(),
+      };
+    } else if (toDate) {
+      // ✅ Only toDate
+      query.createdAt = {
+        $lte: moment(toDate).endOf("day").toDate(),
+      };
     }
 
     // 🔹 Field filters
     if (accountNumber) query.accountNumber = accountNumber;
+    if (mode) query.mode = mode;
     if (agentId) query.agentId = agentId;
     if (managerId) query.managerId = managerId;
+    if (areaManagerId) query.areaManagerId = areaManagerId;
     if (customerId) query.customerId = customerId;
     if (schemeType) query.schemeType = schemeType;
     if (transactionType) query.transactionType = transactionType;
     if (status) query.status = status;
 
-    // 🔹 Search filter (by account number, agent name, customer name)
+    // 🔹 Search filter
     if (search) {
       query.$or = [
         { accountNumber: { $regex: search, $options: "i" } },
-        // { remarks: { $regex: search, $options: "i" } },
+        // { remarks: { $regex: search, $options: "i" } }, // optional
       ];
     }
 
@@ -678,6 +707,7 @@ exports.getTransaction = async (req, res) => {
     });
   }
 };
+
 
 
 exports.getTransactionById = async (req, res) => {
@@ -861,9 +891,9 @@ exports.TransactionApproval = async (req, res) => {
                   Number(scheme.loanTotalEmiDeposited || 0) + Number(transaction.amount);
 
                 // // Example: next EMI date 30 days later
-           const nextDate = new Date();
-nextDate.setDate(nextDate.getDate() + 30);
-scheme.loanNextEmiDate = nextDate;
+                const nextDate = new Date();
+                nextDate.setDate(nextDate.getDate() + 30);
+                scheme.loanNextEmiDate = nextDate;
 
 
                 // // ✅ If all EMIs are paid, mark loan closed

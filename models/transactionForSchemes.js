@@ -16,7 +16,7 @@ const transactionSchemaForSchemes = new mongoose.Schema(
 
     transactionType: {
       type: String,
-      enum: ["deposit", "withdrawal", "emi", "maturityPayout", "penalty"],
+      enum: ["deposit", "withdrawal", "emi", "maturityPayout", "penality"],
       required: true,
     },
 
@@ -24,7 +24,7 @@ const transactionSchemaForSchemes = new mongoose.Schema(
 
     mode: {
       type: String,
-      enum: ["cash", "bankTransfer", "upi","cheque","card", "cheque"],
+      enum: ["cash", "bankTransfer", "upi","cheque","card"],
       required: true,
     },
 
@@ -40,6 +40,7 @@ const transactionSchemaForSchemes = new mongoose.Schema(
 
     agentId: { type: mongoose.Schema.Types.ObjectId, ref: "Agent" },
     managerId: { type: mongoose.Schema.Types.ObjectId, ref: "Manager" },
+    areaManagerId: { type: mongoose.Schema.Types.ObjectId, ref: "AreaManager" },
 
     remarks: { type: String },
   },

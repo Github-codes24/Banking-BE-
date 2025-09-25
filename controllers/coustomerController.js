@@ -19,11 +19,11 @@ exports.getCustomers = async (req, res) => {
       toDate,
       search,
       branch,
-      schemeType,
+      schemeType, // ✅ fd, rd, pigmy, loan
       managerId,
       agentId,
       areaManagerId,
-      all, // ✅ new param
+      all, // ✅ return all without pagination
     } = req.query;
 
     const filter = {};
@@ -52,11 +52,6 @@ exports.getCustomers = async (req, res) => {
       filter.branch = branch;
     }
 
-    // 🔹 Scheme type filter
-    if (schemeType && mongoose.Types.ObjectId.isValid(schemeType)) {
-      filter["schemes.type"] = schemeType;
-    }
-
     // 🔹 Manager filter
     if (managerId && mongoose.Types.ObjectId.isValid(managerId)) {
       filter.managerId = managerId;
@@ -72,6 +67,27 @@ exports.getCustomers = async (req, res) => {
       filter.areaManagerId = areaManagerId;
     }
 
+    // 🔹 Scheme type filter (FD, RD, Pigmy, Loan)
+    if (schemeType) {
+      switch (schemeType.toLowerCase()) {
+        case "fd":
+          filter["fdSchemes.0"] = { $exists: true }; // at least one FD scheme
+          break;
+        case "rd":
+          filter["rdSchemes.0"] = { $exists: true };
+          break;
+        case "pigmy":
+          filter["pigmy.0"] = { $exists: true };
+          break;
+        case "loan":
+          filter["loans.0"] = { $exists: true };
+          break;
+        default:
+          break;
+      }
+    }
+
+    // 🔹 Count total
     const total = await Customer.countDocuments(filter);
 
     let query = Customer.find(filter)
@@ -121,6 +137,7 @@ exports.getCustomers = async (req, res) => {
     });
   }
 };
+
 
 exports.getCustomerById = async (req, res) => {
   try {
