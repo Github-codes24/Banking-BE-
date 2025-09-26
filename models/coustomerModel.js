@@ -15,7 +15,9 @@ const coustomerSchema = new Schema(
     email: {
       type: String,
     },
-
+    picture: {
+      type: String
+    },
     gender: { type: String },
 
     address: { type: String, maxlength: 200 },

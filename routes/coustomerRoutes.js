@@ -17,18 +17,25 @@ const {
   createLoan,
   createPigmy
 } = require("../controllers/coustomerController");
+const { authCheck } = require("../middilewares/authCheck");
 
 const router = require("express").Router();
 
 const upload = require("../utils/multer");
 
-router.get("/", getCustomers);
+router.get("/", authCheck, getCustomers);
 // GET /api/customers?page=1&limit=5&name=Ramesh&branch=Bangalore&schemeType=FD
 
-router.get("/:id", getCustomerById);
-router.post("/", upload.single("signature"), createCustomer);
-router.put("/:id",upload.single("signature"), updateCustomer);
-router.delete("/:id", deleteCustomer);
+router.get("/:id", authCheck, getCustomerById);
+router.post("/", authCheck, upload.fields([
+  { name: "signature", maxCount: 1 },
+  { name: "picture", maxCount: 1 }
+]), createCustomer);
+router.put("/:id", authCheck, upload.fields([
+  { name: "signature", maxCount: 1 },
+  { name: "picture", maxCount: 1 }
+]), updateCustomer);
+router.delete("/:id", authCheck, deleteCustomer);
 
 
 // coustoome app
@@ -38,10 +45,10 @@ router.post("/sendOtp", sendOtp);
 router.post("/verifyOtp", verifyOtp);
 router.post("/createMpin", createMpin);
 router.post("/resetPassword", resetPassword);
-router.post("/createFD/:customerId", createFD);
-router.post("/createRD/:customerId", createRD);
-router.post("/createLoan/:customerId", createLoan);
-router.post("/createPigmy/:customerId", createPigmy)
+router.post("/createFD/:customerId", authCheck, createFD);
+router.post("/createRD/:customerId", authCheck, createRD);
+router.post("/createLoan/:customerId", authCheck, createLoan);
+router.post("/createPigmy/:customerId", authCheck, createPigmy)
 
 router.post("/emi/calculator", emiCalculator);
 

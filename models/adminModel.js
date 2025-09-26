@@ -34,6 +34,7 @@ const adminSchema = new mongoose.Schema(
     loanApplication: [
       {
         title: { type: String },
+        desc: { type: String },
 
         docs: { type: String },
       },
@@ -62,6 +63,7 @@ const adminSchema = new mongoose.Schema(
     ],
     aboutsUs: {
       title: { type: String },
+      mission:{type: String },
       desc: { type: String },
       imageUrl: { type: String },
       vision: { type: String }, // ✅ Single text

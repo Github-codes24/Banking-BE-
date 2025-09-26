@@ -16,22 +16,23 @@ const {
   makeAgentUnBlock
 } = require("../controllers/managerController");
 const upload = require("../utils/multer");
+const { authCheck } = require("../middilewares/authCheck");
 
-router.post("/register",upload.single("signature"), registerManager);
+router.post("/register",authCheck,upload.single("signature"), registerManager);
 router.post("/login", loginManager);
 
-router.route("/").get(getManagers);
+router.route("/",authCheck).get(getManagers);
 
-router.route("/:id").get(getManager).delete(deleteManager);
+router.route("/:id",authCheck).get(getManager).delete(deleteManager);
 // router.route("/:id",upload.single("signature"),).put(updateManager);
-router.put("/:id", upload.single("signature"), updateManager);
+router.put("/:id",authCheck, upload.single("signature"), updateManager);
 router.post("/password-otp", updatePasswordOtp);
 // router.put('/password-otp',  updatePasswordOtp);
-router.post("/verify-otp", verifyOtp);
+router.post("/verify-otp", verifyOtp); 
 router.post("/change-password", changePassword);
-router.get("/agents/:managerId", getAgents);
-router.post("/agent/block/:agentId", makeAgentBlock);
-router.post("/agent/unblock/:agentId", makeAgentUnBlock);
+router.get("/agents/:managerId", authCheck, getAgents);
+router.get("/agent/block/:agentId",authCheck, makeAgentBlock);
+router.get("/agent/unblock/:agentId",authCheck, makeAgentUnBlock);
 router.post("/password-change/:managerId", changeManagerPassword);
 
 module.exports = router;

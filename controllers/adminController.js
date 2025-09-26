@@ -423,6 +423,8 @@ exports.deleteCareers = async (req, res) => {
 
 exports.addLoansApplicationForm = async (req, res) => {
   try {
+
+    console.log(req.params.id,"id")
     const admin = await Admin.findById(req.params.id);
     if (!admin)
       return res.status(404).json({ success: false, error: "Admin not found" });
@@ -435,7 +437,7 @@ exports.addLoansApplicationForm = async (req, res) => {
 
     const data = {
       docs: uploadedUrl,
-      // caption: req.body.caption || "",
+      desc: req.body.desc || "",
       title: req.body.title || "",
     };
 
@@ -828,7 +830,7 @@ exports.fetchAdminData = async (req, res) => {
 
 exports.addAboutUs = async (req, res) => {
   try {
-    const { title, desc, vision, values } = req.body;
+    const { title, desc, vision, values ,mission } = req.body;
 
     // uploaded file from multer
     const imageUrl = req.file ? req.file.path : null;
@@ -860,6 +862,7 @@ exports.addAboutUs = async (req, res) => {
     admin.aboutsUs = {
       title,
       desc,
+      mission,
       vision,
       values: valuesArray,
       imageUrl: uploadedImage,

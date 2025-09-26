@@ -175,16 +175,33 @@ exports.createCustomer = async (req, res) => {
     }
 
 
-    let signature;
-
-if (req.file) {
+   let signature;
+if (req.files && req.files.signature && req.files.signature[0]) {
   try {
-    const upload = await uploadToCloudinary(req.file.path, req.file.originalname);
-    signature = upload?.url; // Cloudinary usually returns `secure_url`
+    const upload = await uploadToCloudinary(
+      req.files.signature[0].path,
+      req.files.signature[0].originalname
+    );
+    signature = upload?.secure_url || upload?.url;
     req.body.signature = signature;
   } catch (error) {
-    console.error("Cloudinary upload failed:", error);
-    return res.status(500).json({ message: "File upload failed" });
+    console.error("Cloudinary upload failed (signature):", error);
+    return res.status(500).json({ message: "Signature upload failed" });
+  }
+}
+
+let picture;
+if (req.files && req.files.picture && req.files.picture[0]) {
+  try {
+    const upload = await uploadToCloudinary(
+      req.files.picture[0].path,
+      req.files.picture[0].originalname
+    );
+    picture = upload?.secure_url || upload?.url;
+    req.body.picture = picture;
+  } catch (error) {
+    console.error("Cloudinary upload failed (picture):", error);
+    return res.status(500).json({ message: "Picture upload failed" });
   }
 }
 
@@ -258,17 +275,33 @@ exports.updateCustomer = async (req, res) => {
     if (password) {
       req.body.password = await bcrypt.hash(password, 10);
     }
-
-    let signature;
-
-if (req.file) {
+let signature;
+if (req.files && req.files.signature && req.files.signature[0]) {
   try {
-    const upload = await uploadToCloudinary(req.file.path, req.file.originalname);
-    signature = upload?.url; // Cloudinary usually returns `secure_url`
+    const upload = await uploadToCloudinary(
+      req.files.signature[0].path,
+      req.files.signature[0].originalname
+    );
+    signature = upload?.secure_url || upload?.url;
     req.body.signature = signature;
   } catch (error) {
-    console.error("Cloudinary upload failed:", error);
-    return res.status(500).json({ message: "File upload failed" });
+    console.error("Cloudinary upload failed (signature):", error);
+    return res.status(500).json({ message: "Signature upload failed" });
+  }
+}
+
+let picture;
+if (req.files && req.files.picture && req.files.picture[0]) {
+  try {
+    const upload = await uploadToCloudinary(
+      req.files.picture[0].path,
+      req.files.picture[0].originalname
+    );
+    picture = upload?.secure_url || upload?.url;
+    req.body.picture = picture;
+  } catch (error) {
+    console.error("Cloudinary upload failed (picture):", error);
+    return res.status(500).json({ message: "Picture upload failed" });
   }
 }
 

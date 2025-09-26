@@ -58,11 +58,13 @@ router.post("/changePassword", changePassword);
 // Banner upload
 router.post(
   "/banners/add/:id",
+  authCheck,
   upload.single("bannerImage"),
   addBanner
 );
 router.put(
   "/banners/update/:itemId/:id",
+  authCheck,
   upload.single("bannerImage"),
   updateBanner
 );
@@ -72,6 +74,7 @@ getBannerItem
 );
 router.delete(
   "/banner/delete/:itemId/:id",
+  authCheck,
   // upload.single("bannerImage"),
   deleteBanner
 );
@@ -81,15 +84,17 @@ router.get("/fetchAdmin" ,fetchAdminData)
 // Gallery upload
 router.post(
   "/gallery/add/:id",
+  authCheck,
   upload.fields([{ name: "galleryImage", maxCount: 5 }]),
   addGalleryItem
 );
 router.put(
   "/gallery/update/:id/:itemId",
+  authCheck,
   upload.fields([{ name: "galleryImage", maxCount: 5 }]),
   updateGalleryItem
 );
-router.delete("/gallery/:adminId/:itemId", deleteGalleryItem);
+router.delete("/gallery/:adminId/:itemId",authCheck, deleteGalleryItem);
 router.get(
   "/gallery/get/:itemId",
 
@@ -98,16 +103,19 @@ router.get(
 
 router.post(
   "/career/:id",
+  authCheck,
   upload.single("careerDocs"),
   addCareers
 );
 router.put(
   "/career/:id/:itemId",
+  authCheck,
   upload.single("careerDocs"),
   updateCareers
 );
 router.delete(
   "/career/:itemId",
+  authCheck,
   // upload.single("docs"),
   deleteCareers
 );
@@ -118,11 +126,14 @@ router.get(
 );
 router.post(
   "/loan-application/:id",
+  authCheck,
   upload.single("docs"),
   addLoansApplicationForm
 );
 router.delete(
   "/loan-application/:itemId",
+  authCheck,
+
 
   deleteLoansApplicationForm
 );
@@ -133,12 +144,16 @@ router.get(
 );
 router.post(
   "/legal-docs/:id",
+  authCheck,
+
   upload.single("legaldocs"),
   addLegalDocs
 );
 
 router.delete(
   "/legal-docs/:itemId",
+  authCheck,
+
   // upload.single("legaldocs"),
   deleteLegalDocs
 );
@@ -163,6 +178,7 @@ router.delete("/:adminId/faq/:faqId", deleteFaq);
 // schems
 router.post(
   "/schemes/add",
+  authCheck,
    upload.fields([
     { name: "logo", maxCount: 1 },
     { name: "pdf", maxCount: 1 }
@@ -171,6 +187,7 @@ router.post(
 );
 router.put(
   "/schemes/update/:itemId",
+  authCheck,
    upload.fields([
     { name: "logo", maxCount: 1 },
     { name: "pdf", maxCount: 1 }
@@ -179,6 +196,7 @@ router.put(
 );
 router.delete(
   "/schemes/delete/:itemId",
+  authCheck,
   // upload.single("schemes"),
   deleteSchems
 );
@@ -189,6 +207,7 @@ router.get(
 );
 router.post(
   "/aboutUs/add",
+  authCheck,
   upload.single("aboutUsImage"),
   addAboutUs
 );

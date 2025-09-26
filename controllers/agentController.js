@@ -8,38 +8,61 @@ const uploadToCloudinary = require("../utils/cloudinary");
 // Create Agent
 exports.createAgent = async (req, res) => {
   try {
-    // Hash password if provided
+    // 🔍 Check if email or contact already exists
+    const { email, contact, areaManagerId } = req.body;
+
+    if (email) {
+      const existingByEmail = await Agent.findOne({ email });
+      if (existingByEmail) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Agent with this email already exists" });
+      }
+    }
+
+    if (contact) {
+      const existingByContact = await Agent.findOne({ contact });
+      if (existingByContact) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Agent with this mobile already exists" });
+      }
+    }
+
+    // 🔑 Hash password if provided
     if (req.body.password) {
       const salt = await bcrypt.genSalt(10);
       req.body.password = await bcrypt.hash(req.body.password, salt);
     }
 
-    let signature;
-
+    // 📄 Upload signature if provided
     if (req.file) {
       try {
         const upload = await uploadToCloudinary(req.file.path, req.file.originalname);
-        signature = upload?.url; // Cloudinary usually returns `secure_url`
-        req.body.signature = signature;
+        req.body.signature = upload?.url; // Cloudinary returns secure_url usually
       } catch (error) {
         console.error("Cloudinary upload failed:", error);
         return res.status(500).json({ message: "File upload failed" });
       }
     }
 
-       const areaManagerId = req.body.areaManagerId;
+    // 🧑‍💼 Validate area manager
     const manager = await AreaManager.findById(areaManagerId);
     if (!manager) {
       return res
         .status(404)
-        .json({ success: false, error: "manager not found" });
+        .json({ success: false, error: "Manager not found" });
     }
-    console.log(manager, "manager");
 
-    req.body.managerId = manager.managerId
+    // Save managerId into agent body
+    req.body.managerId = manager.managerId;
+
+    // 🆕 Create agent
     const agent = await Agent.create(req.body);
+
     res.status(201).json({ success: true, data: agent });
   } catch (err) {
+    console.error("Create agent error:", err.message);
     res.status(400).json({ success: false, message: err.message });
   }
 };

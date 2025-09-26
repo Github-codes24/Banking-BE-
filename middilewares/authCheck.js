@@ -1,7 +1,8 @@
 const jwt = require('jsonwebtoken');
 const Agent = require('../models/agentModel');
 const Manager = require('../models/managerModel');
-
+const Admin = require('../models/adminModel'); // assuming you have Admin model
+const Customer = require('../models/coustomerModel'); // assuming you have Admin model
 
 // Main protect middleware
 exports.authCheck = async (req, res, next) => {
@@ -14,38 +15,39 @@ exports.authCheck = async (req, res, next) => {
     token = req.cookies.token;
   }
 
-  console.log("Incoming token:", token);
-
   if (!token) {
-    console.log("No token provided");
-    return res.status(401).json({ msg: "Unauthorized request" });
+    return res.status(401).json({ msg: "Unauthorized request: No token provided" });
   }
 
   try {
     // 2. Verify token
     const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
-    console.log("Decoded JWT:", decoded);
 
-    // 3. Find user based on role
-    let user;
-    switch (decoded.role) {
-      case 'manager':
-        user = await Manager.findById(decoded.id).select('+password');
-        break;
-      default:
-        console.log("Invalid user role");
-        return res.status(401).json({ msg: "Invalid user role" });
+    // 3. Find user by role in DB
+    let user = null;
+
+    // Try Admin
+    user = await Admin.findById(decoded.id).select('+password');
+    if (!user) {
+      // Try Manager
+      user = await Manager.findById(decoded.id).select('+password');
+    }
+    if (!user) {
+      // Try Agent / Customer
+      user = await Agent.findById(decoded.id).select('+password');
+    }
+    if (!user) {
+      // Try Agent / Customer
+      user = await Customer.findById(decoded.id).select('+password');
     }
 
     if (!user) {
-      console.log("No user found in DB");
       return res.status(401).json({ msg: "No user found with this ID" });
     }
 
-    // 4. Attach user to request
+    // 4. Attach user and role to request
     req.user = user;
-    req.role = decoded.role;
-    console.log("Authenticated user:", user._id);
+    req.role = decoded.role || user.role || 'user'; // fallback role
 
     next();
   } catch (err) {
@@ -54,6 +56,12 @@ exports.authCheck = async (req, res, next) => {
   }
 };
 
-
-// Role authorization middleware
-
+// Role-based authorization middleware
+exports.authorizeRoles = (...roles) => {
+  return (req, res, next) => {
+    if (!roles.includes(req.role)) {
+      return res.status(403).json({ msg: `Role '${req.role}' is not authorized to access this route` });
+    }
+    next();
+  };
+};
