@@ -16,7 +16,8 @@ const coustomerSchema = new Schema(
       type: String,
     },
     picture: {
-      type: String
+      type: String,
+      default:"https://avatar.iran.liara.run/public/boy"
     },
     gender: { type: String },
 
