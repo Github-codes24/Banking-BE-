@@ -504,7 +504,6 @@ exports.savingAccountTransaction = async (req, res) => {
       transactionType, // "deposit" | "withdrawal"
       amount,
       mode, // cash, upi, bankTransfer, cheque
-      agentId,
       remarks,
     } = req.body;
 
@@ -532,35 +531,39 @@ exports.savingAccountTransaction = async (req, res) => {
       });
     }
 
-    let currentBalance = Number(customer.savingAccountBalance || 0);
-    const withdrawLimit = Number(customer.savingAccountWithdrawLimit || 0);
     const txnAmount = Number(amount);
+    const currentBalance = Number(customer.savingAccountBalance || 0);
+    const withdrawLimit = Number(customer.savingAccountWithdrawLimit || 0);
 
-    // 3. Handle deposit
+    // 3. Transaction validation
     if (transactionType === "deposit") {
-      currentBalance += txnAmount;
-    }
-
-    // 4. Handle withdrawal
+      if (txnAmount <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Deposit amount must be greater than 0",
+        });
+      }
+    } 
     else if (transactionType === "withdrawal") {
+      if (txnAmount <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Withdrawal amount must be greater than 0",
+        });
+      }
       if (txnAmount > currentBalance) {
         return res.status(400).json({
           success: false,
           message: "Insufficient balance",
         });
       }
-
       if (withdrawLimit > 0 && txnAmount > withdrawLimit) {
         return res.status(400).json({
           success: false,
           message: `Withdrawal exceeds limit of ${withdrawLimit}`,
         });
       }
-
-      currentBalance -= txnAmount;
-    }
-
-    // 5. Invalid type
+    } 
     else {
       return res.status(400).json({
         success: false,
@@ -568,35 +571,30 @@ exports.savingAccountTransaction = async (req, res) => {
       });
     }
 
-    // 6. Update account balance
-    customer.savingAccountBalance = String(currentBalance);
-
-    // 7. Save customer
-    await customer.save();
-
-    // 8. Create transaction record
+    // 4. Create transaction record (balance not updated yet)
     const transactionId = await generateTransactionId("SAVING");
-    const transaction = await TransactionSchemes.create({
+    const transaction = await Transaction.create({
       transactionId,
       customerId,
-      schemeType: "SAVING",
+      schemeType: "SAVING_ACCOUNT",
       accountNumber: customer.savingAccountNumber,
       transactionType,
       amount: txnAmount,
       mode,
-      agentId,
+      agentId: customer.agentId,
+      areaManagerId: customer.areaManagerId,
       managerId: customer.managerId,
       remarks,
-      status: "pending", // approval flow
+      status: "pending", // balance will be updated on approval
     });
 
-    // 9. Response
+    // 5. Response
     res.status(201).json({
       success: true,
-      message: "Saving account transaction recorded successfully",
+      message: `Saving account ${transactionType} transaction created (pending approval)`,
       data: {
         transaction,
-        newBalance: currentBalance,
+        currentBalance, // unchanged until approval
       },
     });
   } catch (err) {
@@ -608,6 +606,8 @@ exports.savingAccountTransaction = async (req, res) => {
     });
   }
 };
+
+
 
 
 exports.getTransaction = async (req, res) => {
@@ -716,7 +716,7 @@ exports.getTransactionById = async (req, res) => {
 
     const transaction = await Transaction.findById(id)
       .populate("agentId", "name contact address email")
-      .populate("customerId", "name contact address email")
+      .populate("customerId", "name contact address email CustomerId savingAccountBalance picture savingAccountNumber")
       .populate("managerId", "name contact email");
 
     if (!transaction) {
@@ -955,6 +955,36 @@ exports.TransactionApproval = async (req, res) => {
           }
           break;
         }
+
+        // ---------------- SAVING ACCOUNT ----------------
+case "SAVING_ACCOUNT": {
+
+  if (customer) {
+    if (transaction.transactionType === "deposit") {
+      if (status === "approved") {
+        customer.savingAccountBalance =
+          Number(customer.savingAccountBalance || 0) + Number(transaction.amount);
+        customer.savingAccountStatus = "active";
+      }
+      // rejected → do nothing
+    } else if (transaction.transactionType === "withdrawal") {
+      if (status === "approved") {
+        if ((customer.savingAccountBalance || 0) >= transaction.amount) {
+          customer.savingAccountBalance =
+            Number(customer.savingAccountBalance || 0) - Number(transaction.amount);
+        } else {
+          return res.status(400).json({
+            success: false,
+            message: "Insufficient balance for withdrawal",
+          });
+        }
+      }
+      // rejected → do nothing
+    }
+  }
+  break;
+}
+
       }
 
       // save updated customer
