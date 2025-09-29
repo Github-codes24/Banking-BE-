@@ -175,35 +175,35 @@ exports.createCustomer = async (req, res) => {
     }
 
 
-   let signature;
-if (req.files && req.files.signature && req.files.signature[0]) {
-  try {
-    const upload = await uploadToCloudinary(
-      req.files.signature[0].path,
-      req.files.signature[0].originalname
-    );
-    signature = upload?.secure_url || upload?.url;
-    req.body.signature = signature;
-  } catch (error) {
-    console.error("Cloudinary upload failed (signature):", error);
-    return res.status(500).json({ message: "Signature upload failed" });
-  }
-}
+    let signature;
+    if (req.files && req.files.signature && req.files.signature[0]) {
+      try {
+        const upload = await uploadToCloudinary(
+          req.files.signature[0].path,
+          req.files.signature[0].originalname
+        );
+        signature = upload?.secure_url || upload?.url;
+        req.body.signature = signature;
+      } catch (error) {
+        console.error("Cloudinary upload failed (signature):", error);
+        return res.status(500).json({ message: "Signature upload failed" });
+      }
+    }
 
-let picture;
-if (req.files && req.files.picture && req.files.picture[0]) {
-  try {
-    const upload = await uploadToCloudinary(
-      req.files.picture[0].path,
-      req.files.picture[0].originalname
-    );
-    picture = upload?.secure_url || upload?.url;
-    req.body.picture = picture;
-  } catch (error) {
-    console.error("Cloudinary upload failed (picture):", error);
-    return res.status(500).json({ message: "Picture upload failed" });
-  }
-}
+    let picture;
+    if (req.files && req.files.picture && req.files.picture[0]) {
+      try {
+        const upload = await uploadToCloudinary(
+          req.files.picture[0].path,
+          req.files.picture[0].originalname
+        );
+        picture = upload?.secure_url || upload?.url;
+        req.body.picture = picture;
+      } catch (error) {
+        console.error("Cloudinary upload failed (picture):", error);
+        return res.status(500).json({ message: "Picture upload failed" });
+      }
+    }
 
 
     // Attach branch & manager info from Agent
@@ -275,35 +275,35 @@ exports.updateCustomer = async (req, res) => {
     if (password) {
       req.body.password = await bcrypt.hash(password, 10);
     }
-let signature;
-if (req.files && req.files.signature && req.files.signature[0]) {
-  try {
-    const upload = await uploadToCloudinary(
-      req.files.signature[0].path,
-      req.files.signature[0].originalname
-    );
-    signature = upload?.secure_url || upload?.url;
-    req.body.signature = signature;
-  } catch (error) {
-    console.error("Cloudinary upload failed (signature):", error);
-    return res.status(500).json({ message: "Signature upload failed" });
-  }
-}
+    let signature;
+    if (req.files && req.files.signature && req.files.signature[0]) {
+      try {
+        const upload = await uploadToCloudinary(
+          req.files.signature[0].path,
+          req.files.signature[0].originalname
+        );
+        signature = upload?.secure_url || upload?.url;
+        req.body.signature = signature;
+      } catch (error) {
+        console.error("Cloudinary upload failed (signature):", error);
+        return res.status(500).json({ message: "Signature upload failed" });
+      }
+    }
 
-let picture;
-if (req.files && req.files.picture && req.files.picture[0]) {
-  try {
-    const upload = await uploadToCloudinary(
-      req.files.picture[0].path,
-      req.files.picture[0].originalname
-    );
-    picture = upload?.secure_url || upload?.url;
-    req.body.picture = picture;
-  } catch (error) {
-    console.error("Cloudinary upload failed (picture):", error);
-    return res.status(500).json({ message: "Picture upload failed" });
-  }
-}
+    let picture;
+    if (req.files && req.files.picture && req.files.picture[0]) {
+      try {
+        const upload = await uploadToCloudinary(
+          req.files.picture[0].path,
+          req.files.picture[0].originalname
+        );
+        picture = upload?.secure_url || upload?.url;
+        req.body.picture = picture;
+      } catch (error) {
+        console.error("Cloudinary upload failed (picture):", error);
+        return res.status(500).json({ message: "Picture upload failed" });
+      }
+    }
 
 
     // ✅ Update customer
@@ -610,73 +610,69 @@ exports.resetPassword = async (req, res) => {
 
 exports.createFD = async (req, res) => {
   try {
-    const { customerId } = req.params; // pass CustomerId in URL (not _id)
-    const {
-      type,
-      fdDepositAmount,
-   
-      fdTenure,
-      fdTenureType, // "month", "year", or "day"
-      fdMaturityInstruction, // autoRenewal, payout, renewPrincipalOnly
-    } = req.body;
+    const { customerId } = req.params;
+    const { type, fdDepositAmount, fdTenure, fdTenureType } = req.body;
 
-    // ✅ Find customer by CustomerId
-    const customer = await Customer.findOne({ CustomerId: customerId });
-    if (!customer) {
-      return res
-        .status(404)
-        .json({ success: false, error: "Customer not found" });
+    // ✅ Only month-based tenures allowed
+    if (fdTenureType !== "month") {
+      return res.status(400).json({
+        success: false,
+        message: "FD calculation is only supported for month tenure",
+      });
     }
 
-    // ✅ Generate unique FD account number
+    // ✅ Find customer
+    const customer = await Customer.findOne({ CustomerId: customerId });
+    if (!customer) {
+      return res.status(404).json({ success: false, error: "Customer not found" });
+    }
+
+    // ✅ Generate FD account number
     const fdAccountNumber = "FD" + Date.now();
 
     // ✅ Opening Date
     const openingDate = new Date();
 
-    // ✅ Calculate maturity date
-    let maturityDate = moment(openingDate);
-    if (fdTenureType === "year") {
-      maturityDate = maturityDate.add(Number(fdTenure), "years");
-    } else if (fdTenureType === "month") {
-      maturityDate = maturityDate.add(Number(fdTenure), "months");
-    } else {
-      maturityDate = maturityDate.add(Number(fdTenure), "days");
+    // ✅ Maturity Date
+    let maturityDate = moment(openingDate).add(Number(fdTenure), "months");
+
+    // ✅ Find interest rate from ENV
+    const envKey = `FD_RATE_${fdTenure}M`;
+    const interestRate = Number(process.env[envKey]);
+
+    if (!interestRate) {
+      return res.status(400).json({
+        success: false,
+        message: `Interest rate not configured for ${fdTenure} months. Please set ${envKey} in .env`,
+      });
     }
 
-    // ✅ Calculate maturity amount (compound annually)
+    // ✅ Calculate maturity amount (compound annually but tenure in months)
     const principal = Number(fdDepositAmount);
-    const rate = Number(process.env.FD_INTREST_RATE || 6) / 100;
-    const time =
-      fdTenureType === "year"
-        ? Number(fdTenure)
-        : fdTenureType === "month"
-          ? Number(fdTenure) / 12
-          : Number(fdTenure) / 365;
+    const rate = interestRate / 100;
+    const time = Number(fdTenure) / 12; // convert months to years
 
     const maturityAmount = principal * Math.pow(1 + rate, time);
 
-    // ✅ Create FD object
+    // ✅ FD Scheme object
     const fdScheme = {
       type,
-      savingAccountNo:customer.savingAccountNumber,
+      savingAccountNo: customer.savingAccountNumber,
       fdAccountNumber,
       fdOpeningDate: openingDate,
       fdPrincipalAmount: principal,
       fdDepositAmount: 0,
-      fdInterestRate: process.env.FD_INTREST_RATE || 6,
+      fdInterestRate: interestRate,
       fdTenure,
       fdTenureType,
       fdMaturityDate: maturityDate.toDate(),
       fdMaturityAmount: maturityAmount.toFixed(2),
-      fdMaturityInstruction,
       fdAccountStatus: "pending",
     };
 
-    // ✅ Push to fdSchemes array
+    // ✅ Save FD
     customer.fdSchemes.push(fdScheme);
-   await customer.save({ validateBeforeSave: false });
-
+    await customer.save({ validateBeforeSave: false });
 
     res.status(201).json({
       success: true,
@@ -685,16 +681,15 @@ exports.createFD = async (req, res) => {
     });
   } catch (err) {
     console.error("Error creating FD:", err);
-    res
-      .status(500)
-      .json({ success: false, error: "Server Error: " + err.message });
+    res.status(500).json({ success: false, error: "Server Error: " + err.message });
   }
 };
+
 
 exports.createRD = async (req, res) => {
   try {
     const { customerId } = req.params; // pass customerId in URL
-    const {  rdTenure, type, rdInstallAmount } = req.body;
+    const { rdTenure, type, rdInstallAmount } = req.body;
 
     // ✅ Find customer
     const customer = await Customer.findOne({ CustomerId: customerId });
@@ -740,7 +735,7 @@ exports.createRD = async (req, res) => {
       rdTenureType: "month",
       rdInterestRate: process.env.RD_INTREST_RATE || 6,
       rdInstallAmount: P,
-      savingAccountNo:customer.savingAccountNumber,
+      savingAccountNo: customer.savingAccountNumber,
       type,
       rdTotalDepositedInstallment: 0,
       rdInstallMentsFrequency: "monthly",
@@ -896,7 +891,7 @@ exports.createLoan = async (req, res) => {
     };
 
     customer.loans.push(newLoan);
-    await customer.save({validateBeforeSave:false});
+    await customer.save({ validateBeforeSave: false });
 
     res.status(201).json({
       success: true,
@@ -1014,7 +1009,7 @@ exports.createPigmy = async (req, res) => {
       pigMyAccountStatus: "pending",
     };
     customer.pigmy.push(newPigmy)
-    await customer.save({validateBeforeSave:false});
+    await customer.save({ validateBeforeSave: false });
 
     res.status(201).json({
       success: true,

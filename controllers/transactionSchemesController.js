@@ -153,7 +153,7 @@ exports.fdTransaction = async (req, res) => {
       transactionType,
       amount,
       mode,
-      agentId,
+      // agentId,
       // remarks,
     } = req.body;
 
@@ -167,7 +167,7 @@ exports.fdTransaction = async (req, res) => {
 
     // Find FD scheme inside customer's schemes array
     const scheme = customer.fdSchemes.find(
-      (s) => s.fdAccountNumber == fdAccountNumber
+      (s) => s.fdAccountNumber === fdAccountNumber
     );
 
     if (!scheme) {
@@ -176,9 +176,8 @@ exports.fdTransaction = async (req, res) => {
         .json({ success: false, message: "FD scheme not found for customer" });
     }
 
-    let payoutAmount = 0;
-
-    if (transactionType == "deposit") {
+    if (transactionType === "deposit") {
+      // Check if deposit already made
       if (scheme.fdDepositAmount && Number(scheme.fdDepositAmount) > 0) {
         return res.status(400).json({
           success: false,
@@ -187,6 +186,8 @@ exports.fdTransaction = async (req, res) => {
       }
 
       const expectedPrincipal = Number(scheme.fdPrincipalAmount || 0);
+
+      // Check deposit amount matches FD principal
       if (Number(amount) !== expectedPrincipal) {
         return res.status(400).json({
           success: false,
@@ -194,71 +195,41 @@ exports.fdTransaction = async (req, res) => {
         });
       }
 
+      // ✅ Check if customer has enough balance
+      if (Number(customer.savingAccountBalance) < Number(amount)) {
+        return res.status(400).json({
+          success: false,
+          message: "Insufficient balance in saving account",
+        });
+      }
 
-
-
-    }
-
-
-
-    // else if (transactionType === "maturityPayout") {
-    //   const now = new Date();
-
-    //   if (!scheme.fdMaturityDate || new Date(scheme.fdMaturityDate) > now) {
-    //     return res.status(400).json({
-    //       success: false,
-    //       message: "FD scheme has not matured yet",
-    //     });
-    //   }
-
-    //   if (scheme.fdAccountStatus === "closed") {
-    //     return res.status(400).json({
-    //       success: false,
-    //       message: "FD scheme already closed",
-    //     });
-    //   }
-
-
-    //   payoutAmount = Number(scheme.fdMaturityAmount) || 0;
-
-    //   if (payoutAmount <= 0) {
-    //     return res.status(400).json({
-    //       success: false,
-    //       message: "Invalid maturity amount",
-    //     });
-    //   }
-
-
-    //   scheme.fdAccountStatus = "closed";
-    // }
-
-
-
-    else {
+      // Deduct FD amount from saving account (optional here if you want to auto-update)
+      // customer.savingAccountBalance = 
+      //   Number(customer.savingAccountBalance) - Number(amount);
+      // scheme.fdDepositAmount = Number(amount);
+    } else {
       return res.status(400).json({
         success: false,
         message: "Invalid transaction type",
       });
     }
 
-    // Save updated scheme in customer
+    // Save updated customer
     await customer.save({ validateBeforeSave: false });
+
+    // Create FD transaction (pending until manager approval)
     const transactionId = await generateTransactionId("FD");
-    // Create transaction (pending until manager approves)
     const transaction = await Transaction.create({
       customerId,
       transactionId,
       managerId: customer.managerId,
       schemeType: "FD",
-      // ✅ customer’s saving account
       accountNumber: fdAccountNumber,
       transactionType,
       amount,
       mode,
-      agentId: agentId || customer.agentId,
+      agentId: customer.agentId,
       areaManagerId: customer?.areaManagerId || "",
-      // remarks,
-      // balanceAfterTransaction: payoutAmount, // for FD it's just deposit/maturity
       status: "pending",
     });
 
@@ -543,7 +514,7 @@ exports.savingAccountTransaction = async (req, res) => {
           message: "Deposit amount must be greater than 0",
         });
       }
-    } 
+    }
     else if (transactionType === "withdrawal") {
       if (txnAmount <= 0) {
         return res.status(400).json({
@@ -563,7 +534,7 @@ exports.savingAccountTransaction = async (req, res) => {
           message: `Withdrawal exceeds limit of ${withdrawLimit}`,
         });
       }
-    } 
+    }
     else {
       return res.status(400).json({
         success: false,
@@ -797,8 +768,14 @@ exports.TransactionApproval = async (req, res) => {
               if (status === "approved") {
                 scheme.fdDepositAmount =
                   Number(scheme.fdDepositAmount || 0) + Number(transaction.amount || 0);
+                // Deduct FD amount from saving account (optional here if you want to auto-update)
+                customer.savingAccountBalance =
+                  Number(customer.savingAccountBalance) - Number(transaction.amount);
 
                 scheme.fdAccountStatus = "active";
+
+
+
               }
               // rejected → do nothing
             }
@@ -957,33 +934,33 @@ exports.TransactionApproval = async (req, res) => {
         }
 
         // ---------------- SAVING ACCOUNT ----------------
-case "SAVING_ACCOUNT": {
+        case "SAVING_ACCOUNT": {
 
-  if (customer) {
-    if (transaction.transactionType === "deposit") {
-      if (status === "approved") {
-        customer.savingAccountBalance =
-          Number(customer.savingAccountBalance || 0) + Number(transaction.amount);
-        customer.savingAccountStatus = "active";
-      }
-      // rejected → do nothing
-    } else if (transaction.transactionType === "withdrawal") {
-      if (status === "approved") {
-        if ((customer.savingAccountBalance || 0) >= transaction.amount) {
-          customer.savingAccountBalance =
-            Number(customer.savingAccountBalance || 0) - Number(transaction.amount);
-        } else {
-          return res.status(400).json({
-            success: false,
-            message: "Insufficient balance for withdrawal",
-          });
+          if (customer) {
+            if (transaction.transactionType === "deposit") {
+              if (status === "approved") {
+                customer.savingAccountBalance =
+                  Number(customer.savingAccountBalance || 0) + Number(transaction.amount);
+                customer.savingAccountStatus = "active";
+              }
+              // rejected → do nothing
+            } else if (transaction.transactionType === "withdrawal") {
+              if (status === "approved") {
+                if ((customer.savingAccountBalance || 0) >= transaction.amount) {
+                  customer.savingAccountBalance =
+                    Number(customer.savingAccountBalance || 0) - Number(transaction.amount);
+                } else {
+                  return res.status(400).json({
+                    success: false,
+                    message: "Insufficient balance for withdrawal",
+                  });
+                }
+              }
+              // rejected → do nothing
+            }
+          }
+          break;
         }
-      }
-      // rejected → do nothing
-    }
-  }
-  break;
-}
 
       }
 
@@ -1007,3 +984,211 @@ case "SAVING_ACCOUNT": {
   }
 };
 
+
+
+
+
+exports.fdPayout = async (req, res) => {
+  try {
+    const { customerId, fdAccountNumber } = req.body;
+
+    // 1. Find customer
+    const customer = await Customer.findById(customerId);
+    if (!customer) {
+      return res.status(404).json({ success: false, message: "Customer not found" });
+    }
+
+    // 2. Find FD account
+    const fdAccount = customer.fdSchemes.find(fd => fd.fdAccountNumber === fdAccountNumber);
+    if (!fdAccount) {
+      return res.status(404).json({ success: false, message: "FD account not found" });
+    }
+
+    if (fdAccount.fdAccountStatus === "closed") {
+      return res.status(400).json({ success: false, message: "FD already closed" });
+    }
+
+    // 3. Calculate elapsed months
+    const openingDate = moment(fdAccount.fdOpeningDate);
+    const today = moment();
+    const elapsedMonths = today.diff(openingDate, "months");
+
+    const tenureMonths = Number(fdAccount.fdTenureType === "month" ? fdAccount.fdTenure : fdAccount.fdTenure * 12);
+    let penaltyRate = 0;
+
+    // 4. Check payout rules based on FD tenure
+    switch (tenureMonths) {
+      case 9:
+      case 12:
+        if (elapsedMonths < tenureMonths) {
+          return res.status(400).json({ success: false, message: "No premature withdrawal allowed for this FD" });
+        }
+        break;
+
+      case 24:
+        if (elapsedMonths < 12) return res.status(400).json({ success: false, message: "Cannot withdraw before 12 months" });
+        penaltyRate = elapsedMonths <= 18 ? 4 : 4.5;
+        break;
+
+      case 36:
+        if (elapsedMonths < 18) return res.status(400).json({ success: false, message: "Cannot withdraw before 18 months" });
+        penaltyRate = elapsedMonths <= 30 ? 4 : 4.5;
+        break;
+
+      case 48:
+        if (elapsedMonths < 24) return res.status(400).json({ success: false, message: "Cannot withdraw before 24 months" });
+        penaltyRate = elapsedMonths <= 42 ? 4 : 4.5;
+        break;
+
+      case 84:
+        if (elapsedMonths < 42) return res.status(400).json({ success: false, message: "Cannot withdraw before 42 months" });
+        penaltyRate = elapsedMonths <= 72 ? 4 : 5;
+        break;
+
+      default:
+        return res.status(400).json({ success: false, message: "Invalid FD tenure" });
+    }
+
+    // 5. Calculate payout amount
+    const principal = Number(fdAccount.fdPrincipalAmount);
+    const rate = Number(fdAccount.fdInterestRate) / 100;
+    const timeYears = elapsedMonths / 12;
+    let maturityAmount = principal * Math.pow(1 + rate, timeYears);
+
+    if (penaltyRate > 0) {
+      maturityAmount = maturityAmount * (1 - penaltyRate / 100);
+    }
+    const transactionId = await generateTransactionId("FD");
+    // 6. Record transaction
+    const transaction = await Transaction.create({
+      customerId,
+      transactionId,
+      schemeType: "FD",
+      accountNumber: fdAccountNumber,
+      transactionType: "maturityPayout",
+      amount: maturityAmount,
+      mode: "bankTransfer",
+      managerId: customer.managerId,
+      status: "approved",
+      agentId: customer.agentId,
+      areaManagerId: customer?.areaManagerId || "",
+    });
+
+    // 7. Update FD status
+    fdAccount.fdAccountStatus = "closed";
+    fdAccount.fdMaturityAmount = maturityAmount.toFixed(2);
+    fdAccount.fdCloseDate = new Date();
+    customer.savingAccountBalance = parseFloat(customer.savingAccountBalance) + parseFloat(maturityAmount.toFixed(2));
+
+    await customer.save({ validateBeforeSave: false });
+
+    return res.status(200).json({
+      success: true,
+      message: "FD payout processed successfully",
+      data: { maturityAmount: maturityAmount.toFixed(2), transaction },
+    });
+
+  } catch (err) {
+    console.error("FD Payout Error:", err);
+    return res.status(500).json({ success: false, message: "Internal Server Error", error: err.message });
+  }
+};
+
+
+exports.advanceloanEmiPay = async (req, res) => {
+  try {
+    const {
+      customerId,
+      loanAccountNumber,
+      amount,
+      mode,
+      // agentId,
+      // remarks,
+    } = req.body;
+
+    // 1. Find customer
+    const customer = await Customer.findById(customerId);
+    if (!customer) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Customer not found" });
+    }
+
+    // 2. Find loan
+    const scheme = customer.loans.find(
+      (s) => s.loanAccountNumber === loanAccountNumber
+    );
+
+    if (!scheme) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Loan not found for customer" });
+    }
+
+    // 3. Check if loan is already closed
+    if (scheme.status === "closed") {
+      return res.status(400).json({
+        success: false,
+        message: "This loan account is already closed",
+      });
+    }
+
+    // // 4. Check if amount <= remaining balance
+    // const remainingBalance =
+    //   (scheme.loanTotalAmount || 0) - (scheme.loanTotalPaid || 0);
+
+    if (amount > loanOutstandingAmount) {
+      return res.status(400).json({
+        success: false,
+        message: `Entered amount (${amount}) exceeds remaining balance (${remainingBalance})`,
+      });
+    }
+
+    // // Update paid amount (optional if you want to reflect immediately)
+    // scheme.loanTotalPaid = (scheme.loanTotalPaid || 0) + amount;
+
+    // // If fully paid, mark closed
+    // if (scheme.loanTotalPaid >= scheme.loanTotalAmount) {
+    //   scheme.status = "closed";
+    //   scheme.closedDate = new Date();
+    //   scheme.closureType = "advance";
+    // }
+
+    // 5. Generate transactionId
+    const transactionId = await generateTransactionId("LOAN");
+
+    // 6. Create transaction record
+    const transaction = await Transaction.create({
+      transactionId,
+      customerId,
+      schemeType: "LOAN",
+      accountNumber: loanAccountNumber,
+      transactionType: "emi",
+      amount,
+      mode,
+      installmentNo: (Number(scheme?.loanTotalNumberOfEmiDeposited) || 0) + 1,
+      areaManagerId: customer?.areaManagerId,
+      agentId: customer.agentId,
+      managerId: customer.managerId,
+      // remarks,
+      status: "pending", // approval flow
+    });
+
+    // 7. Save updated customer
+    await customer.save({ validateBeforeSave: false });
+
+    res.status(201).json({
+      success: true,
+      message: "Loan EMI transaction recorded successfully",
+      transaction,
+      loan: scheme,
+    });
+  } catch (err) {
+    console.error("Loan Transaction Error:", err);
+    res.status(500).json({
+      success: false,
+      error: "Server Error",
+      message: err.message,
+    });
+  }
+};
