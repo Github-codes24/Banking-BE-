@@ -17,7 +17,7 @@ const coustomerSchema = new Schema(
     },
     picture: {
       type: String,
-      default:"https://avatar.iran.liara.run/public/boy"
+      default: "https://avatar.iran.liara.run/public/boy"
     },
     gender: { type: String },
 
@@ -157,7 +157,7 @@ const coustomerSchema = new Schema(
         pigmyDailyDeposit: { type: String },
         // 
         pigMyMaturityAmount: { type: String },
-        pigMyAccountStatus: {
+        pigmyAccount: {
           type: String,
           enum: ["active", "closed", "pending", "matured"],
           default: "pending",
@@ -188,18 +188,49 @@ const coustomerSchema = new Schema(
         },
         rdTotalDepositedtAmount: { type: Number },
         rdTotalDepositedInstallment: { type: Number },
+        rdNextEmiDate: { type: Date },
+        rdLastEmiDate: { type: Date },
 
         rdMaturityAmount: { type: Number },
 
         rdAccountStatus: {
           type: String,
-          enum: ["active", "closed", "pending", "matured"],
+          enum: ["active", "closed", "irregular", "pending", "matured"],
           default: "active",
         },
         rdCloseDate: { type: Date },
       },
     ],
+    lakhpatiSchemes: [
+      {
+        lakhpatiYojanaAccountNumber: { type: String },
+        lakhpatiYojanaOpeningDate: { type: Date },
+        lakhpatiYojanaMaturityDate: { type: Date },
+        lakhpatiYojanaTenure: { type: String },
+        lakhpatiYojanaTenureType: {
+          type: String,
+          enum: ["month", "year", "week"],
+        },
+        lakhpatiYojanaInterestRate: { type: String },
+        lakhpatiYojanaInstallAmount: { type: String },
+        lakhpatiYojanaTotalInstallments: { type: String },
+        lakhpatiYojanaInstallMentsFrequency: {
+          type: String,
+          enum: ["monthly", "quarterly"],
+        },
+        lakhpatiYojanaTotalDepositedAmount: { type: Number },
+        lakhpatiYojanaTotalDepositedInstallments: { type: Number },
+        lakhpatiYojanaMaturityAmount: { type: Number },
+        lakhpatiYojnaNextEmiDate :{type:Date},
 
+        lakhpatiYojanaAccountStatus: {
+          type: String,
+          enum: ["active", "closed", "matured" ,"pending"],
+          default: "pending",
+        },
+        lakhpatiYojanaCloseDate: { type: Date },
+      }
+    ],
     QrCode: {
       type: String,
     },

@@ -33,7 +33,6 @@ exports.rdTransaction = async (req, res) => {
       transactionType,
       amount,
       mode,
-      // agentId,
       remarks,
     } = req.body;
 
@@ -47,13 +46,12 @@ exports.rdTransaction = async (req, res) => {
     const scheme = customer.rdSchemes.find(
       (s) => s.rdAccountNumber === rdAccountNumber
     );
-
     if (!scheme) {
       return res.status(404).json({ success: false, message: "RD scheme not found for customer" });
     }
 
-    // 3. Block if RD is closed
-    if (scheme.rdAccountStatus === "closed" || scheme.rdAccountStatus === "matured") {
+    // 3. Block if RD closed/matured
+    if (["closed", "matured"].includes(scheme.rdAccountStatus)) {
       return res.status(400).json({
         success: false,
         message: `This RD scheme is already ${scheme.rdAccountStatus}`,
@@ -64,38 +62,79 @@ exports.rdTransaction = async (req, res) => {
 
     // 4. Handle EMI deposit
     if (transactionType === "emi") {
-      const expectedInstallment = Number(scheme.rdInstallAmount) || 0;
+      const now = new Date();
+      const openingDate = new Date(scheme.rdOpeningDate);
 
-      if (Number(amount) !== expectedInstallment) {
+      // EMI amount
+      const emiAmount = Number(scheme.rdInstallAmount) || 0;
+
+      // Months passed since RD opening (0-based)
+      const monthsPassed =
+        (now.getFullYear() - openingDate.getFullYear()) * 12 +
+        (now.getMonth() - openingDate.getMonth());
+
+      // Already paid installments
+      const paidInstallments = Number(scheme.rdTotalDepositedInstallment) || 0;
+
+      // Check if all EMIs till current month are paid
+      if (paidInstallments >= monthsPassed + 1) {
         return res.status(400).json({
           success: false,
-          message: `Installment must be exactly ${expectedInstallment}`,
+          message: "All EMIs are already paid for this month. No EMI left.",
         });
       }
 
-      // 🔹 Update RD scheme deposit tracking
-      // scheme.rdTotalDepositedtAmount =
-      //   Number(scheme.rdTotalDepositedtAmount || 0) + Number(amount);
+      // Calculate missed installments
+      const missedInstallments = Math.max(0, monthsPassed - paidInstallments);
+      console.log(missedInstallments, "missedInstallments");
 
-      // scheme.rdTotalDepositedInstallment =
-      //   Number(scheme.rdTotalDepositedInstallment || 0) + 1;
+      // Calculate penalty for missed months (₹10 per month)
+      let penalty = missedInstallments * 10;
 
-      // scheme.rdLastEmiDate = now;
+      // Next due EMI date
+      const nextDueDate = new Date(openingDate);
+      nextDueDate.setMonth(openingDate.getMonth() + paidInstallments + 1);
 
-      // 🔹 Calculate next EMI date
-      // if (!scheme.rdNextEmiDate) {
-      //   scheme.rdNextEmiDate = new Date(now);
-      // }
+      // Add grace period of 7 days
+      const graceEndDate = new Date(nextDueDate);
+      graceEndDate.setDate(graceEndDate.getDate() + 7);
 
-      // const nextDate = new Date(scheme.rdNextEmiDate);
-      // nextDate.setMonth(nextDate.getMonth() + 1); // assuming monthly RD
-      // scheme.rdNextEmiDate = nextDate;
+      let installmentsDue = missedInstallments; // start with only missed ones
 
-      // // 🔹 Check maturity
-      // if (scheme.rdMaturityDate && new Date(scheme.rdNextEmiDate) > new Date(scheme.rdMaturityDate)) {
-      //   scheme.rdAccountStatus = "matured";
-      // }
+      // If current month's EMI due date is already reached (or within grace) → count it too
+      if (now >= nextDueDate) {
+        installmentsDue += 1;
+      }
+
+      // If no missed installments, but EMI is beyond grace → extra penalty
+      if (missedInstallments === 0 && now > graceEndDate) {
+        penalty += 10;
+      }
+
+      console.log(nextDueDate, "nextDueDate");
+      const totalPayable = installmentsDue * emiAmount + penalty;
+
+      const totalPayableWithoutPenality = installmentsDue * emiAmount
+
+      // Validate payment amount
+      if (Number(amount) !== totalPayable) {
+        return res.status(400).json({
+          success: false,
+          message:
+            penalty > 0
+              ? `You must pay ₹${installmentsDue * emiAmount} + ₹${penalty} penalty = ₹${totalPayable}`
+              : `Installment must be exactly ₹${installmentsDue * emiAmount}`,
+        });
+      }
+
+      // Update RD scheme
+      scheme.rdLastEmiDate = now;
+
+      if (penalty > 0) {
+        scheme.rdAccountStatus = "irregular";
+      }
     }
+
 
     // 5. Invalid transaction type
     else {
@@ -106,7 +145,7 @@ exports.rdTransaction = async (req, res) => {
     }
 
     // 6. Save customer updates
-    // await customer.save();
+    await customer.save();
 
     // 7. Create transaction record
     const transactionId = await generateTransactionId("RD");
@@ -116,15 +155,14 @@ exports.rdTransaction = async (req, res) => {
       schemeType: "RD",
       accountNumber: rdAccountNumber,
       transactionType,
-      amount,
+      amount: totalPayableWithoutPenality,
       mode,
-      installmentNo: (Number(scheme?.rdTotalDepositedInstallment) || 0) + 1,
-
+      installmentNo: (Number(scheme?.rdTotalDepositedInstallment) || 0),
       agentId: customer.agentId,
       areaManagerId: customer.areaManagerId,
       managerId: customer.managerId,
       remarks,
-      status: "pending", // approval flow
+      status: "pending",
     });
 
     res.status(201).json({
@@ -132,6 +170,7 @@ exports.rdTransaction = async (req, res) => {
       message: "RD transaction recorded successfully",
       data: { transaction, updatedScheme: scheme },
     });
+
   } catch (err) {
     console.error("RD Transaction Error:", err);
     res.status(500).json({
@@ -253,8 +292,7 @@ exports.loanEmiTransaction = async (req, res) => {
       loanAccountNumber,
       amount,
       mode,
-      // agentId,
-      // remarks,
+
     } = req.body;
 
     // 1. Find customer
@@ -387,10 +425,10 @@ exports.pigmyEmiTransaction = async (req, res) => {
     }
 
     // 3. Check if account is already closed
-    if (pigmy.pigMyAccountStatus === "closed" || pigmy.pigMyAccountStatus === "matured") {
+    if (pigmy.pigmyAccount === "closed" || pigmy.pigmyAccount === "matured") {
       return res.status(400).json({
         success: false,
-        message: `This pigmy account is already ${pigmy.pigMyAccountStatus} `,
+        message: `This pigmy account is already ${pigmy.pigmyAccount} `,
       });
     }
 
@@ -435,7 +473,7 @@ exports.pigmyEmiTransaction = async (req, res) => {
       transactionId,
       customerId,
       areaManagerId: customer?.areaManagerId,
-      schemeType: "PIGMY",
+      schemeType: "Lakhpati",
       accountNumber: pigMyAccountNumber,
       transactionType: "emi",
       amount,
@@ -459,6 +497,108 @@ exports.pigmyEmiTransaction = async (req, res) => {
     });
   } catch (err) {
     console.error("Pigmy Transaction Error:", err);
+    res.status(500).json({
+      success: false,
+      error: "Server Error",
+      message: err.message,
+    });
+  }
+};
+
+
+exports.lakhpatiEmiTransaction = async (req, res) => {
+  try {
+    const {
+      customerId,
+      lakhpatiYojanaAccountNumber,
+      amount,
+      mode,
+      // agentId (optional if needed)
+    } = req.body;
+
+    // 1. Find customer
+    const customer = await Customer.findById(customerId);
+    if (!customer) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Customer not found" });
+    }
+
+    // 2. Find Lakhpati Yojana account
+    const lakhpati = customer.lakhpatiSchemes.find(
+      (l) => l.lakhpatiYojanaAccountNumber == lakhpatiYojanaAccountNumber
+    );
+
+    if (!lakhpati) {
+      return res.status(404).json({
+        success: false,
+        message: "Lakhpati Yojana account not found for customer",
+      });
+    }
+
+    // 3. Check if account is already closed or matured
+    if (
+      lakhpati.lakhpatiYojanaAccountStatus === "closed" ||
+      lakhpati.lakhpatiYojanaAccountStatus === "matured"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: `This Lakhpati Yojana account is already ${lakhpati.lakhpatiYojanaAccountStatus}`,
+      });
+    }
+
+    // 4. Validate installment amount
+    const expectedInstallment = Number(lakhpati.lakhpatiYojanaInstallAmount) || 0;
+    if (Number(amount) !== expectedInstallment) {
+      return res.status(400).json({
+        success: false,
+        message: `Installment must be exactly ${expectedInstallment}`,
+      });
+    }
+
+    // 5. Generate transaction ID
+    const transactionId = await generateTransactionId("LAKH");
+
+    // // 6. Update Lakhpati account
+    // lakhpati.lakhpatiYojanaTotalDepositedAmount =
+    //   Number(lakhpati.lakhpatiYojanaTotalDepositedAmount || 0) + Number(amount);
+
+    // lakhpati.lakhpatiYojanaTotalInstallments =
+    //   Number(lakhpati.lakhpatiYojanaTotalInstallments || 0);
+
+    const installmentNo =
+      (Number(lakhpati.lakhpatiYojanaTotalDepositedInstallments) || 0) + 1;
+
+    // lakhpati.lakhpatiYojanaInstallMentsDone = installmentNo;
+    // lakhpati.lakhpatiYojanaAccountStatus = "active";
+
+    // 7. Save transaction
+    const transaction = await Transaction.create({
+      transactionId,
+      customerId,
+      areaManagerId: customer?.areaManagerId,
+      schemeType: "Lakhpati",
+      accountNumber: lakhpatiYojanaAccountNumber,
+      transactionType: "emi",
+      amount,
+      mode,
+      installmentNo,
+      agentId: customer.agentId,
+      managerId: customer.managerId,
+      status: "pending", // approval workflow
+    });
+
+    // 8. Save updated customer
+    await customer.save({ validateBeforeSave: false });
+
+    res.status(201).json({
+      success: true,
+      message: "Lakhpati EMI recorded successfully",
+      transaction,
+      lakhpati,
+    });
+  } catch (err) {
+    console.error("Lakhpati Transaction Error:", err);
     res.status(500).json({
       success: false,
       error: "Server Error",
@@ -789,15 +929,7 @@ exports.TransactionApproval = async (req, res) => {
             (s) => s.rdAccountNumber === transaction.accountNumber
           );
           if (scheme) {
-            // if (transaction.transactionType === "maturityPayout") {
-            //   if (status === "approved") {
-            //     scheme.rdAccountStatus = "closed";
-            //     scheme.rdCloseDate = new Date();
-            //   } else {
-            //     scheme.rdAccountStatus = "active";
-            //     scheme.rdCloseDate = null;
-            //   }
-            // } else
+         
 
             if (transaction.transactionType === "emi") {
               if (status === "approved") {
@@ -806,14 +938,19 @@ exports.TransactionApproval = async (req, res) => {
                 scheme.rdTotalDepositedInstallment =
                   (scheme.rdTotalDepositedInstallment || 0) + 1;
 
-                // 🔹 Calculate next EMI date
+                // Suppose scheme.rdOpeningDate is saved when RD is created
                 if (!scheme.rdNextEmiDate) {
-                  scheme.rdNextEmiDate = new Date();
+                  // First EMI will be exactly same date of next month from opening date
+                  const firstEmi = new Date(scheme.rdOpeningDate);
+                  firstEmi.setMonth(firstEmi.getMonth() + 1);
+                  scheme.rdNextEmiDate = firstEmi;
+                } else {
+                  // From the last emi date, go to next month same date
+                  const nextDate = new Date(scheme.rdNextEmiDate);
+                  nextDate.setMonth(nextDate.getMonth() + 1);
+                  scheme.rdNextEmiDate = nextDate;
                 }
 
-                const nextDate = new Date(scheme.rdNextEmiDate);
-                nextDate.setMonth(nextDate.getMonth() + 1); // assuming monthly RD
-                scheme.rdNextEmiDate = nextDate;
 
 
 
@@ -836,6 +973,59 @@ exports.TransactionApproval = async (req, res) => {
           }
           break;
         }
+
+
+
+ case "Lakhpati": {
+          const scheme = customer.lakhpatiSchemes.find(
+            (s) => s.lakhpatiYojanaAccountNumber === transaction.accountNumber
+          );
+          if (scheme) {
+         
+
+            if (transaction.transactionType === "emi") {
+              if (status === "approved") {
+                scheme.lakhpatiYojanaTotalDepositedAmount =
+                  (scheme.lakhpatiYojanaTotalDepositedAmount || 0) + transaction.amount;
+                scheme.lakhpatiYojanaTotalDepositedInstallments =
+                  (scheme.lakhpatiYojanaTotalDepositedInstallments || 0) + 1;
+
+                // Suppose scheme.rdOpeningDate is saved when RD is created
+                if (!scheme.lakhpatiYojnaNextEmiDate) {
+                  // First EMI will be exactly same date of next month from opening date
+                  const firstEmi = new Date(scheme.lakhpatiYojanaOpeningDate);
+                  firstEmi.setMonth(firstEmi.getMonth() + 1);
+                  scheme.lakhpatiYojnaNextEmiDate = firstEmi;
+                } else {
+                  // From the last emi date, go to next month same date
+                  const nextDate = new Date(scheme.lakhpatiYojnaNextEmiDate);
+                  nextDate.setMonth(nextDate.getMonth() + 1);
+                  scheme.lakhpatiYojnaNextEmiDate = nextDate;
+                }
+
+
+
+
+                if (
+                  scheme.lakhpatiYojanaTotalDepositedAmount > 0 &&
+                  scheme.lakhpatiYojanaAccountStatus === "pending"
+                ) {
+                  scheme.lakhpatiYojanaAccountStatus = "active";
+                }
+
+                // 🔹 Check maturity
+                if (scheme.lakhpatiYojanaMaturityDate && new Date(scheme.lakhpatiYojnaNextEmiDate) > new Date(scheme.lakhpatiYojanaMaturityDate)) {
+                  scheme.lakhpatiYojanaAccountStatus = "matured";
+                }
+
+
+              }
+              // rejected → do nothing
+            }
+          }
+          break;
+        }
+
 
         // ---------------- LOAN ----------------
         case "LOAN": {
@@ -1095,100 +1285,236 @@ exports.fdPayout = async (req, res) => {
 };
 
 
-exports.advanceloanEmiPay = async (req, res) => {
+exports.rdPayout = async (req, res) => {
   try {
-    const {
-      customerId,
-      loanAccountNumber,
-      amount,
-      mode,
-      // agentId,
-      // remarks,
-    } = req.body;
+    const { customerId, rdAccountNumber } = req.body;
 
     // 1. Find customer
     const customer = await Customer.findById(customerId);
     if (!customer) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Customer not found" });
+      return res.status(404).json({ success: false, message: "Customer not found" });
     }
 
-    // 2. Find loan
-    const scheme = customer.loans.find(
-      (s) => s.loanAccountNumber === loanAccountNumber
-    );
-
-    if (!scheme) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Loan not found for customer" });
+    // 2. Find RD account
+    const rdAccount = customer.rdSchemes.find(rd => rd.rdAccountNumber === rdAccountNumber);
+    if (!rdAccount) {
+      return res.status(404).json({ success: false, message: "RD account not found" });
     }
 
-    // 3. Check if loan is already closed
-    if (scheme.status === "closed") {
-      return res.status(400).json({
-        success: false,
-        message: "This loan account is already closed",
-      });
+    if (rdAccount.rdAccountStatus === "closed") {
+      return res.status(400).json({ success: false, message: "RD already closed" });
     }
 
-    // // 4. Check if amount <= remaining balance
-    // const remainingBalance =
-    //   (scheme.loanTotalAmount || 0) - (scheme.loanTotalPaid || 0);
+    // 3. Calculate elapsed months
+    const openingDate = moment(rdAccount.rdOpeningDate);
+    const today = moment();
+    const elapsedMonths = today.diff(openingDate, "months");
+    const tenureMonths = Number(rdAccount.rdTenure);
 
-    if (amount > loanOutstandingAmount) {
-      return res.status(400).json({
-        success: false,
-        message: `Entered amount (${amount}) exceeds remaining balance (${remainingBalance})`,
-      });
+    let prematureRate = null;
+
+    // 4. Apply RD premature rules
+    if ([12, 24].includes(tenureMonths)) {
+      if (elapsedMonths < tenureMonths) {
+        return res.status(400).json({ success: false, message: "No premature withdrawal allowed for this RD" });
+      }
+    } else if (tenureMonths === 36) {
+      if (elapsedMonths < 18) {
+        return res.status(400).json({ success: false, message: "Cannot withdraw before 18 months" });
+      }
+      prematureRate = 4.25 / 100;
+    } else if (tenureMonths === 48) {
+      if (elapsedMonths < 24) {
+        return res.status(400).json({ success: false, message: "Cannot withdraw before 24 months" });
+      }
+      prematureRate = 4.5 / 100;
+    } else if (tenureMonths === 60) {
+      if (elapsedMonths < 30) {
+        return res.status(400).json({ success: false, message: "Cannot withdraw before 30 months" });
+      }
+      prematureRate = 4.75 / 100;
+    } else {
+      return res.status(400).json({ success: false, message: "Invalid RD tenure" });
     }
 
-    // // Update paid amount (optional if you want to reflect immediately)
-    // scheme.loanTotalPaid = (scheme.loanTotalPaid || 0) + amount;
+    // 5. Calculate payout
+    // 5. Calculate payout based on actual deposits
+    const monthlyInstallment = Number(rdAccount.rdInstallAmount);
+    const depositedAmount = Number(rdAccount.rdTotalDepositedtAmount) || 0;
+    const paidMonths = Number(rdAccount.rdTotalDepositedInstallment) || 0;
+    const timeYears = paidMonths / 12;
+    const rate = rdAccount.rdInterestRate
+    const n = 12;
+    let maturityAmount = monthlyInstallment *
+      ((Math.pow(1 + rate / n, n * timeYears) - 1) / (rate / n));
 
-    // // If fully paid, mark closed
-    // if (scheme.loanTotalPaid >= scheme.loanTotalAmount) {
-    //   scheme.status = "closed";
-    //   scheme.closedDate = new Date();
-    //   scheme.closureType = "advance";
-    // }
 
-    // 5. Generate transactionId
-    const transactionId = await generateTransactionId("LOAN");
+    if (prematureRate) {
+      // Calculate interest on actual deposits (not assumed full months)
+      const timeYears = paidMonths / 12; // actual paid months in years
+      const n = 12; // compounding monthly
 
-    // 6. Create transaction record
+      maturityAmount =
+        monthlyInstallment *
+        ((Math.pow(1 + prematureRate / n, n * timeYears) - 1) / (prematureRate / n));
+
+      maturityAmount = maturityAmount.toFixed(2);
+    }
+
+    const transactionId = await generateTransactionId("RD");
+
+    // 6. Record transaction
     const transaction = await Transaction.create({
-      transactionId,
       customerId,
-      schemeType: "LOAN",
-      accountNumber: loanAccountNumber,
-      transactionType: "emi",
-      amount,
-      mode,
-      installmentNo: (Number(scheme?.loanTotalNumberOfEmiDeposited) || 0) + 1,
-      areaManagerId: customer?.areaManagerId,
-      agentId: customer.agentId,
+      transactionId,
+      schemeType: "RD",
+      accountNumber: rdAccountNumber,
+      transactionType: "maturityPayout",
+      amount: maturityAmount,
+      mode: "bankTransfer",
       managerId: customer.managerId,
-      // remarks,
-      status: "pending", // approval flow
+      status: "approved",
+      agentId: customer.agentId,
+      areaManagerId: customer?.areaManagerId || "",
     });
 
-    // 7. Save updated customer
+    // 7. Update RD status
+    rdAccount.rdAccountStatus = "closed";
+    rdAccount.rdMaturityAmount = maturityAmount.toFixed(2);
+    rdAccount.rdCloseDate = new Date();
+    customer.savingAccountBalance = parseFloat(customer.savingAccountBalance) + parseFloat(maturityAmount.toFixed(2));
+
     await customer.save({ validateBeforeSave: false });
 
-    res.status(201).json({
+    return res.status(200).json({
       success: true,
-      message: "Loan EMI transaction recorded successfully",
-      transaction,
-      loan: scheme,
+      message: "RD payout processed successfully",
+      data: { maturityAmount: maturityAmount.toFixed(2), transaction },
+    });
+
+  } catch (err) {
+    console.error("RD Payout Error:", err);
+    return res.status(500).json({ success: false, message: "Internal Server Error", error: err.message });
+  }
+};
+
+
+exports.pigmyPayout = async (req, res) => {
+  try {
+    const { customerId, pigMyAccountNumber } = req.body;
+
+    // 1. Find customer
+    const customer = await Customer.findById(customerId);
+    if (!customer) {
+      return res.status(404).json({ success: false, message: "Customer not found" });
+    }
+
+    // 2. Find Pigmy account
+    const pigmyAccount = customer.pigmy.find(
+      (p) => p.pigMyAccountNumber === pigMyAccountNumber
+    );
+    if (!pigmyAccount) {
+      return res.status(404).json({ success: false, message: "Pigmy account not found" });
+    }
+
+    if (pigmyAccount.pigmyAccountStatus === "closed") {
+      return res.status(400).json({ success: false, message: "Pigmy account already closed" });
+    }
+
+    // 3. Calculate elapsed months/days
+    const openingDate = moment(pigmyAccount.pigMyOpeningDate);
+    const today = moment();
+    const elapsedMonths = today.diff(openingDate, "months");
+    const elapsedDays = today.diff(openingDate, "days");
+
+    const tenureMonths = Number(pigmyAccount.pigMyTenure);
+    const dailyDeposit = Number(pigmyAccount.pigmyDailyDeposit);
+    const rate = Number(pigmyAccount.pigMyInterestRate) / 100 || 0.05;
+
+    const principalDeposited = dailyDeposit * elapsedDays;
+
+    let interest = 0;
+    let penalty = 0;
+    let canWithdraw = true;
+
+    // 4. Apply Pigmy Rules
+    if (tenureMonths === 6) {
+      if (elapsedDays < 60 || elapsedMonths < 2) {
+        canWithdraw = false;
+      } else if (elapsedMonths >= 1 && elapsedMonths < 3) {
+        penalty = principalDeposited * 0.05;
+      } else if (elapsedMonths >= 4 && elapsedMonths < 6) {
+        penalty = principalDeposited * 0.02;
+      } else if (elapsedMonths >= 6) {
+        interest = principalDeposited * rate * (elapsedMonths / 12);
+      }
+    } else if (tenureMonths === 12) {
+      if (elapsedDays < 90 || elapsedMonths < 3) {
+        canWithdraw = false;
+      } else if (elapsedMonths >= 3 && elapsedMonths < 6) {
+        penalty = principalDeposited * 0.06; // 6% service charge
+      } else if (elapsedMonths >= 6 && elapsedMonths < 9) {
+        penalty = principalDeposited * 0.02; // 2% service charge
+      } else if (elapsedMonths >= 9 && elapsedMonths < 12) {
+        // No penalty but no interest
+        penalty = 0;
+      } else if (elapsedMonths >= 12) {
+        interest = principalDeposited * rate * (elapsedMonths / 12);
+      }
+    } else {
+      return res.status(400).json({ success: false, message: "Invalid Pigmy tenure" });
+    }
+
+    if (!canWithdraw) {
+      return res.status(400).json({ success: false, message: "Premature withdrawal not allowed yet" });
+    }
+
+    const maturityAmount = principalDeposited + interest - penalty;
+
+    // 5. Record Transaction
+    const transactionId = await generateTransactionId("PIGMY");
+
+    const transaction = await Transaction.create({
+      customerId,
+      transactionId,
+      schemeType: "PIGMY",
+      accountNumber: pigMyAccountNumber,
+      transactionType: "maturityPayout",
+      amount: maturityAmount.toFixed(2),
+      mode: "bankTransfer",
+      managerId: customer.managerId,
+      status: "approved",
+      agentId: customer.agentId,
+      areaManagerId: customer?.areaManagerId || "",
+    });
+
+    // 6. Update Pigmy status
+    pigmyAccount.pigmyAccount = "closed";
+    pigmyAccount.pigMyMaturityAmount = maturityAmount.toFixed(2);
+    pigmyAccount.pigMyCloseDate = new Date();
+
+    customer.savingAccountBalance =
+      parseFloat(customer.savingAccountBalance) + parseFloat(maturityAmount.toFixed(2));
+
+    await customer.save({ validateBeforeSave: false });
+
+    return res.status(200).json({
+      success: true,
+      message: "Pigmy payout processed successfully",
+      data: {
+        maturityAmount: maturityAmount.toFixed(2),
+        principalDeposited,
+        interest,
+        penalty,
+        transaction,
+      },
     });
   } catch (err) {
-    console.error("Loan Transaction Error:", err);
-    res.status(500).json({
+    console.error("Pigmy Payout Error:", err);
+    return res.status(500).json({
       success: false,
-      error: "Server Error",
-      message: err.message,
+      message: "Internal Server Error",
+      error: err.message,
     });
   }
 };

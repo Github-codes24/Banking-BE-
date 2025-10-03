@@ -611,7 +611,7 @@ exports.resetPassword = async (req, res) => {
 exports.createFD = async (req, res) => {
   try {
     const { customerId } = req.params;
-    const { type, fdDepositAmount, fdTenure, fdTenureType } = req.body;
+    const { type, fdDepositAmount, fdTenure, interestRate, fdTenureType } = req.body;
 
     // ✅ Only month-based tenures allowed
     if (fdTenureType !== "month") {
@@ -636,23 +636,36 @@ exports.createFD = async (req, res) => {
     // ✅ Maturity Date
     let maturityDate = moment(openingDate).add(Number(fdTenure), "months");
 
-    // ✅ Find interest rate from ENV
-    const envKey = `FD_RATE_${fdTenure}M`;
-    const interestRate = Number(process.env[envKey]);
+    // const envKey = `FD_RATE_${fdTenure}M`;
+    // const interestRate = Number(process.env[envKey]);
+    // console.log(interestRate, fdTenure, "interestRate");
 
-    if (!interestRate) {
+    if (!interestRate || isNaN(interestRate)) {
       return res.status(400).json({
         success: false,
         message: `Interest rate not configured for ${fdTenure} months. Please set ${envKey} in .env`,
       });
     }
 
-    // ✅ Calculate maturity amount (compound annually but tenure in months)
+    // ✅ Calculate maturity amount with quarterly compounding
     const principal = Number(fdDepositAmount);
-    const rate = interestRate / 100;
-    const time = Number(fdTenure) / 12; // convert months to years
 
-    const maturityAmount = principal * Math.pow(1 + rate, time);
+    if (!principal || isNaN(principal) || principal <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid deposit amount",
+      });
+    }
+
+    const annualRate = interestRate / 100;
+    const timeInYears = Number(fdTenure) / 12; // tenure in years
+    const n = 1; // compounding frequency yearly
+
+    // Compound Interest Formula: A = P * (1 + r/n)^(n*t)
+    const maturityAmount = principal * Math.pow(1 + annualRate / n, n * timeInYears);
+
+    // Optional: Round to 2 decimals
+    // const maturityAmountRounded = parseFloat(maturityAmount.toFixed(2));
 
     // ✅ FD Scheme object
     const fdScheme = {
@@ -699,28 +712,44 @@ exports.createRD = async (req, res) => {
         .json({ success: false, error: "Customer not found" });
     }
 
+    // ✅ Minimum amount check
+    const MIN_RD_AMOUNT = process.env.MIN_RD_AMOUNT || 500;
+    if (Number(rdInstallAmount) < MIN_RD_AMOUNT) {
+      return res.status(400).json({
+        success: false,
+        error: `Minimum RD installment amount is ₹${MIN_RD_AMOUNT}`,
+      });
+    }
+
     // ✅ Generate unique RD account number
     const rdAccountNumber = "RD" + Date.now();
 
     // ✅ Opening Date
     const openingDate = new Date();
 
-    // ✅ Calculate maturity date (monthly installments only for now)
     let maturityDate = moment(openingDate).add(Number(rdTenure), "months");
 
-    // ✅ Calculate total deposited amount
-    // const totalDeposited = Number(rdInstallAmount) * Number(rdTotalInstallments);
+    // Map tenure ranges to env variable keys
+    function getRateKey(rdTenure) {
+      if (rdTenure <= 6) return "RD_INTREST_RATE_0_6M";
+      if (rdTenure >= 7 && rdTenure <= 11) return "RD_INTREST_RATE_7_11M";
+      if (rdTenure >= 12 && rdTenure <= 18) return "RD_INTREST_RATE_12_18M";
+      if (rdTenure >= 19 && rdTenure <= 24) return "RD_INTREST_RATE_19_24M";
+      if (rdTenure >= 30 && rdTenure <= 60) return "RD_INTREST_RATE_30_60M";
+      return null; // or default
+    }
 
-    // ✅ Calculate maturity amount (using simple compounding approx.)
-    const rate = Number(process.env.RD_INTREST_RATE || 6) / 100;
-    const timeYears = Number(rdTenure) / 12; // convert tenure in months to years
+    const rateKey = getRateKey(Number(rdTenure));
+    const rate = rateKey ? (Number(process.env[rateKey]) || 0) / 100 : 0;
 
-    // Future Value of RD (compound monthly) formula:
-    // FV = P * [((1 + r/n)^(n*t) - 1) / (1 - (1 + r/n)^(-1))]
-    // Simplified approximation for monthly deposits:
+    const timeYears = Number(rdTenure) / 12; // tenure in years
     const n = 12; // monthly compounding
     const P = Number(rdInstallAmount);
 
+    console.log(rate,)
+    console.log(rate,)
+
+    // ✅ RD maturity formula
     const maturityAmount =
       P *
       ((Math.pow(1 + rate / n, n * timeYears) - 1) / (rate / n)) *
@@ -733,7 +762,7 @@ exports.createRD = async (req, res) => {
       rdMaturityDate: maturityDate.toDate(),
       rdTenure,
       rdTenureType: "month",
-      rdInterestRate: process.env.RD_INTREST_RATE || 6,
+      rdInterestRate: process.env[rateKey] || 6,
       rdInstallAmount: P,
       savingAccountNo: customer.savingAccountNumber,
       type,
@@ -742,6 +771,7 @@ exports.createRD = async (req, res) => {
       rdTotalDepositedtAmount: 0,
       rdTotalInstallments: rdTenure,
       rdMaturityAmount: maturityAmount.toFixed(2),
+      rdNextEmiDate: new Date(),
       rdAccountStatus: "pending",
     };
 
@@ -762,6 +792,68 @@ exports.createRD = async (req, res) => {
   }
 };
 
+exports.createLakhpatiSchems = async (req, res) => {
+  try {
+    const { customerId } = req.params;
+    const { InstallAmount, tenure, tenureType, maturityAmount } = req.body;
+
+
+    // ✅ Calculate fields
+    const openingDate = new Date();
+    const maturityDate = new Date(openingDate);
+    if (tenureType === "month") {
+      maturityDate.setMonth(maturityDate.getMonth() + parseInt(tenure));
+    } else if (tenureType === "year") {
+      maturityDate.setFullYear(maturityDate.getFullYear() + parseInt(tenure));
+    } else if (tenureType === "week") {
+      maturityDate.setDate(maturityDate.getDate() + parseInt(tenure) * 7);
+    }
+
+    const totalInstallments = tenureType === "month"
+      ? parseInt(tenure)
+      : tenureType === "year"
+        ? parseInt(tenure) * 12
+        : parseInt(tenure) * 4; // approx 4 weeks in month
+
+    const accountNumber = "LY" + Date.now();
+
+    // ✅ Create object
+    const newScheme = {
+      lakhpatiYojanaAccountNumber: accountNumber,
+      lakhpatiYojanaOpeningDate: openingDate,
+      lakhpatiYojanaMaturityDate: maturityDate,
+      lakhpatiYojanaTenure: tenure,
+      lakhpatiYojanaTenureType: tenureType,
+      // lakhpatiYojanaInterestRate: interestRate,
+      lakhpatiYojanaInstallAmount: InstallAmount,
+      lakhpatiYojanaTotalInstallments: totalInstallments,
+      // lakhpatiYojanaInstallMentsFrequency: frequency,
+      // lakhpatiYojanaTotalDepositedAmount: totalDepositedAmount,
+      lakhpatiYojanaMaturityAmount: maturityAmount,
+      // lakhpatiYojnaNextEmiDate:new Date()
+      // lakhpatiYojanaAccountStatus: "active",
+    };
+
+    // ✅ Save inside Customer
+    const customer = await Customer.findById(customerId);
+    if (!customer) {
+      return res.status(404).json({ success: false, message: "Customer not found" });
+    }
+
+    customer.lakhpatiSchemes.push(newScheme);  // ✅ push scheme
+    await customer.save({validateBeforeSave:false});
+
+    res.status(201).json({
+      success: true,
+      message: "Lakhpati Yojana scheme created successfully",
+      data: newScheme,
+    });
+  } catch (err) {
+    console.error("Error creating scheme:", err);
+    res.status(500).json({ success: false, message: "Server error", error: err.message });
+  }
+};
+
 
 
 
@@ -777,7 +869,7 @@ exports.createLoan = async (req, res) => {
         .json({ success: false, error: "Customer not found" });
     }
 
-    const { loanPrincipalAmount, loanType, loanTenure, loanTenureType, loanEMIFrequency } = req.body;
+    const { loanPrincipalAmount, loanInterestRate, loanType, loanTenure, loanTenureType, loanEMIFrequency } = req.body;
 
     if (!loanPrincipalAmount || !loanTenure || !loanType || !loanTenureType || !loanEMIFrequency) {
       return res.status(400).json({ success: false, message: "Required fields missing" });
@@ -816,7 +908,7 @@ exports.createLoan = async (req, res) => {
     totalEmisCount = Math.round(totalEmisCount);
 
     // 2. Calculate estimated EMI amount using a simple interest formula
-    const assumedInterestRate = 10; // Annual interest rate in percent (example)
+    const assumedInterestRate = loanInterestRate; // Annual interest rate in percent (example)
     const principal = parseFloat(loanPrincipalAmount);
     const tenureInYears =
       loanTenureType === "year"
@@ -929,7 +1021,7 @@ exports.createPigmy = async (req, res) => {
     }
 
 
-    const pigMyInterestRate = 8
+    const pigMyInterestRate = process.env.PIGMY_INTERESTRATE || 5
 
     if (!pigmyDailyDeposit || !type || !pigMyTenure || !pigMyTenureType) {
       return res.status(400).json({
