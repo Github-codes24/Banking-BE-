@@ -68,38 +68,7 @@ const coustomerSchema = new Schema(
         },
         fdCloseDate: { type: Date },
 
-        // // lakhapti
-        // lakhpatiYojanaAccountNumber: { type: String },
-        // lakhpatiYojanaOpeningDate: { type: Date },
-        // lakhpatiYojanaMaturityDate: { type: Date },
-        // lakhpatiYojanaTenure: { type: String },
-        // lakhpatiYojanaTenureType: {
-        //   type: String,
-        //   enum: ["month", "year", "week"],
-        // },
-        // lakhpatiYojanaInterestRate: { type: String },
-        // lakhpatiYojanaInstallAmount: { type: String },
-        // lakhpatiYojanaTotalInstallments: { type: String },
-        // lakhpatiYojanaInstallMentsFrequency: {
-        //   type: String,
-        //   enum: ["monthly", "quarterly"],
-        // },
-        // lakhpatiYojanaTotalDepositedAmount: { type: Number },
-        // lakhpatiYojanaMaturityAmount: { type: Number },
-        // lakhpatiYojanaPayoutFrequency: {
-        //   type: String,
-        //   enum: ["monthly", "quarterly", "yearly", "atMaturity"],
-        // },
-        // lakhpatiYojanaAccountStatus: {
-        //   type: String,
-        //   enum: ["active", "closed", "matured"],
-        //   default: "active",
-        // },
-        // lakhpatiYojanaCloseDate: { type: Date },
-        // // Pigmy specific fields
-
-
-        // // Loan specific fields
+        
 
       },
     ],
@@ -221,14 +190,39 @@ const coustomerSchema = new Schema(
         lakhpatiYojanaTotalDepositedAmount: { type: Number },
         lakhpatiYojanaTotalDepositedInstallments: { type: Number },
         lakhpatiYojanaMaturityAmount: { type: Number },
-        lakhpatiYojnaNextEmiDate :{type:Date},
+        lakhpatiYojnaNextEmiDate: { type: Date },
 
         lakhpatiYojanaAccountStatus: {
           type: String,
-          enum: ["active", "closed", "matured" ,"pending"],
+          enum: ["active", "closed", "matured", "pending"],
           default: "pending",
         },
         lakhpatiYojanaCloseDate: { type: Date },
+      }
+    ],
+    mipSchemes: [
+      {
+        mipAccountNumber: { type: String },
+        mipOpeningDate: { type: Date },
+        mipMaturityDate: { type: Date },
+        mipTenure: { type: String },
+        mipTenureType: {
+          type: String,
+          enum: ["month", "year", "week"],
+        },
+        mipInterestRate: { type: String },
+        mipDepositAmount: { type: String },
+        mipMaturityAmount: { type: String },
+        mipMonthlyInterestPay: {
+          type: String
+        },
+
+      mipAccountStatus: {
+          type: String,
+          enum: ["active", "closed", "matured", "pending"],
+          default: "pending",
+        },
+        mipCloseDate: { type: Date },
       }
     ],
     QrCode: {

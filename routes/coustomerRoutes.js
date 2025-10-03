@@ -12,6 +12,7 @@ const {
   createMpin,
   createRD,
   resetPassword,
+  createMipScheme,
   emiCalculator,
   getCustomerById,
   createLoan,
@@ -51,6 +52,7 @@ router.post("/createRD/:customerId", authCheck, createRD);
 router.post("/createLoan/:customerId", authCheck, createLoan);
 router.post("/createPigmy/:customerId", authCheck, createPigmy)
 router.post("/createLakhpati/:customerId", authCheck, createLakhpatiSchems)
+router.post("/createMIP/:customerId", authCheck, createMipScheme)
 
 router.post("/emi/calculator", emiCalculator);
 

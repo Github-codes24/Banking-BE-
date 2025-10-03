@@ -607,6 +607,8 @@ exports.lakhpatiEmiTransaction = async (req, res) => {
   }
 };
 
+exports
+
 
 exports.savingAccountTransaction = async (req, res) => {
   try {
@@ -929,7 +931,7 @@ exports.TransactionApproval = async (req, res) => {
             (s) => s.rdAccountNumber === transaction.accountNumber
           );
           if (scheme) {
-         
+
 
             if (transaction.transactionType === "emi") {
               if (status === "approved") {
@@ -976,12 +978,12 @@ exports.TransactionApproval = async (req, res) => {
 
 
 
- case "Lakhpati": {
+        case "Lakhpati": {
           const scheme = customer.lakhpatiSchemes.find(
             (s) => s.lakhpatiYojanaAccountNumber === transaction.accountNumber
           );
           if (scheme) {
-         
+
 
             if (transaction.transactionType === "emi") {
               if (status === "approved") {
@@ -992,15 +994,38 @@ exports.TransactionApproval = async (req, res) => {
 
                 // Suppose scheme.rdOpeningDate is saved when RD is created
                 if (!scheme.lakhpatiYojnaNextEmiDate) {
-                  // First EMI will be exactly same date of next month from opening date
-                  const firstEmi = new Date(scheme.lakhpatiYojanaOpeningDate);
-                  firstEmi.setMonth(firstEmi.getMonth() + 1);
+                  // First EMI date = same day next month from opening date
+                  const openingDate = new Date(scheme.lakhpatiYojanaOpeningDate);
+                  const day = openingDate.getDate();
+
+                  const firstEmi = new Date(openingDate);
+                  firstEmi.setMonth(openingDate.getMonth() + 1);
+
+                  // Ensure EMI day matches the original opening date's day
+                  if (firstEmi.getDate() < day) {
+                    // Handle cases like Jan 31 -> Feb (28/29 days)
+                    firstEmi.setDate(0); // last day of previous month
+                  } else {
+                    firstEmi.setDate(day);
+                  }
+
                   scheme.lakhpatiYojnaNextEmiDate = firstEmi;
                 } else {
-                  // From the last emi date, go to next month same date
-                  const nextDate = new Date(scheme.lakhpatiYojnaNextEmiDate);
-                  nextDate.setMonth(nextDate.getMonth() + 1);
-                  scheme.lakhpatiYojnaNextEmiDate = nextDate;
+                  // Next EMI date based on last EMI but fixed day
+                  const lastEmi = new Date(scheme.lakhpatiYojnaNextEmiDate);
+                  const openingDate = new Date(scheme.lakhpatiYojanaOpeningDate);
+                  const day = openingDate.getDate();
+
+                  const nextEmi = new Date(lastEmi);
+                  nextEmi.setMonth(lastEmi.getMonth() + 1);
+
+                  if (nextEmi.getDate() < day) {
+                    nextEmi.setDate(0); // fallback to last valid date
+                  } else {
+                    nextEmi.setDate(day);
+                  }
+
+                  scheme.lakhpatiYojnaNextEmiDate = nextEmi;
                 }
 
 
@@ -1177,7 +1202,7 @@ exports.TransactionApproval = async (req, res) => {
 
 
 
-
+// #region MIP Payout Function
 exports.fdPayout = async (req, res) => {
   try {
     const { customerId, fdAccountNumber } = req.body;
@@ -1417,7 +1442,7 @@ exports.pigmyPayout = async (req, res) => {
       return res.status(404).json({ success: false, message: "Pigmy account not found" });
     }
 
-    if (pigmyAccount.pigmyAccountStatus === "closed") {
+    if (pigmyAccount.pigmyAccount === "closed") {
       return res.status(400).json({ success: false, message: "Pigmy account already closed" });
     }
 
@@ -1518,3 +1543,168 @@ exports.pigmyPayout = async (req, res) => {
     });
   }
 };
+
+
+exports.LakhpatiPayout = async (req, res) => {
+  try {
+    const { customerId, lakhpatiYojanaAccountNumber } = req.body;
+
+    // 1. Find customer
+    const customer = await Customer.findById(customerId);
+    if (!customer) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Customer not found" });
+    }
+
+    // 2. Find Lakhpati Yojana account
+    const lakhpati = customer.lakhpatiSchemes.find(
+      (l) => l.lakhpatiYojanaAccountNumber == lakhpatiYojanaAccountNumber
+    );
+
+    if (!lakhpati) {
+      return res.status(404).json({
+        success: false,
+        message: "Lakhpati Yojana account not found for customer",
+      });
+    }
+
+    // 3. Check if account is already closed or matured
+    if (
+      lakhpati.lakhpatiYojanaAccountStatus === "closed" ||
+      lakhpati.lakhpatiYojanaAccountStatus === "matured"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: `This Lakhpati Yojana account is already ${lakhpati.lakhpatiYojanaAccountStatus}`,
+      });
+    }
+
+
+    // 4. Verify maturity date
+    const today = new Date();
+    if (today < new Date(lakhpati.lakhpatiYojanaMaturityDate)) {
+      return res.status(400).json({
+        success: false,
+        message: `This account has not reached maturity yet. Maturity date is ${new Date(
+          lakhpati.lakhpatiYojanaMaturityDate
+        ).toLocaleDateString()}`,
+      });
+    }
+
+
+    lakhpati.lakhpatiYojanaAccountStatus = "closed";
+    lakhpati.lakhpatiYojanaCloseDate = new Date();
+    customer.savingAccountBalance = parseFloat(customer.savingAccountBalance) + parseFloat(lakhpati.lakhpatiYojanaMaturityAmount.toFixed(2));
+
+    const transactionId = await generateTransactionId("FD");
+    const transaction = await Transaction.create({
+      customerId,
+      transactionId,
+      managerId: customer.managerId,
+      schemeType: "Lakhpati",
+      accountNumber: lakhpatiYojanaAccountNumber,
+      transactionType: "maturityPayout",
+      amount: lakhpati.lakhpatiYojanaMaturityAmount,
+      mode: "bankTransfer",
+      agentId: customer.agentId,
+      areaManagerId: customer?.areaManagerId || "",
+      status: "approved",
+    });
+
+
+    // Save updated customer
+    await customer.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Lakhpati Yojana matured successfully",
+      maturityAmount,
+      details: lakhpati,
+    });
+  } catch (err) {
+    console.error("Error in LakhpatiPayout:", err);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+exports.MipPayout = async (req, res) => {
+  try {
+    const { customerId, mipAccountNumber } = req.body;
+
+    // 1. Find customer
+    const customer = await Customer.findById(customerId);
+    if (!customer) {
+      return res.status(404).json({ success: false, message: "Customer not found" });
+    }
+
+    // 2. Find MIP scheme
+    const mip = customer.mipSchemes.find(
+      (m) => m.mipAccountNumber == mipAccountNumber
+    );
+
+    if (!mip) {
+      return res.status(404).json({
+        success: false,
+        message: "MIP account not found for customer",
+      });
+    }
+
+    // 3. Check if already matured or closed
+    if (["closed", "matured"].includes(mip.mipAccountStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: `This MIP account is already ${mip.mipAccountStatus}`,
+      });
+    }
+
+    // 4. Verify maturity date
+    const today = new Date();
+    if (today < new Date(mip.mipMaturityDate)) {
+      return res.status(400).json({
+        success: false,
+        message: `This account has not reached maturity yet. Maturity date is ${new Date(
+          mip.mipMaturityDate
+        ).toLocaleDateString()}`,
+      });
+    }
+
+    // 5. Calculate maturity payout (principal only, since monthly interest is already paid)
+    const maturityAmount = parseFloat(mip.mipDepositAmount || 0);
+
+    // 6. Update scheme
+    mip.mipMaturityAmount = maturityAmount;
+    customer.savingAccountBalance = parseFloat(customer.savingAccountBalance) + parseFloat(maturityAmount.toFixed(2));
+    mip.mipAccountStatus = "matured";
+    mip.mipCloseDate = today;
+
+    const transactionId = await generateTransactionId("MIP");
+    const transaction = await Transaction.create({
+      customerId,
+      transactionId,
+      managerId: customer.managerId,
+      schemeType: "MIP",
+      accountNumber: mipAccountNumber,
+      transactionType: "maturityPayout",
+      amount: maturityAmount,
+      mode: "bankTransfer",
+      agentId: customer.agentId,
+      areaManagerId: customer?.areaManagerId || "",
+      status: "approved",
+    });
+
+
+    await customer.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "MIP matured successfully. Principal returned to customer.",
+      maturityAmount,
+      details: mip,
+    });
+  } catch (err) {
+    console.error("Error in MipPayout:", err);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+

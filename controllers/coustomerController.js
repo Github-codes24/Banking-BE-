@@ -7,7 +7,7 @@ const mongoose = require("mongoose")
 const uploadToCloudinary = require("../utils/cloudinary");
 const moment = require("moment");
 
-
+const Transaction = require("../models/transactionForSchemes");
 
 exports.getCustomers = async (req, res) => {
   try {
@@ -853,6 +853,132 @@ exports.createLakhpatiSchems = async (req, res) => {
     res.status(500).json({ success: false, message: "Server error", error: err.message });
   }
 };
+
+const generateTransactionId = async (schemeType = "GEN") => {
+  const date = new Date();
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+
+  // Date part
+  const datePart = `${yyyy}${mm}${dd}`;
+
+  // Count how many transactions today for sequential number
+  const count = await Transaction.countDocuments({
+    createdAt: {
+      $gte: new Date(`${yyyy}-${mm}-${dd}T00:00:00.000Z`),
+      $lte: new Date(`${yyyy}-${mm}-${dd}T23:59:59.999Z`),
+    },
+  });
+
+  // Sequential number padded
+  const seq = String(count + 1).padStart(4, "0");
+
+  // Final ID
+  return `TXN-${schemeType}-${datePart}-${seq}`;
+};
+
+exports.createMipScheme = async (req, res) => {
+  try {
+    const { customerId } = req.params;
+    const { depositAmount, tenure, tenureType, interestRate } = req.body;
+
+    if (!depositAmount || !tenure || !tenureType || !interestRate) {
+      return res.status(400).json({ success: false, message: "All fields are required" });
+    }
+
+    // Fetch customer
+    const customer = await Customer.findById(customerId);
+    if (!customer) {
+      return res.status(404).json({ success: false, message: "Customer not found" });
+    }
+
+    // Calculate opening and maturity dates
+    const openingDate = new Date();
+    let maturityDate = new Date(openingDate);
+
+    switch (tenureType.toLowerCase()) {
+      case "month":
+        maturityDate.setMonth(maturityDate.getMonth() + parseInt(tenure));
+        break;
+      case "year":
+        maturityDate.setFullYear(maturityDate.getFullYear() + parseInt(tenure));
+        break;
+ 
+      default:
+        return res.status(400).json({ success: false, message: "Invalid tenure type" });
+    }
+
+    // Calculate monthly interest payout
+    // Assuming interestRate is annual percentage and tenure is in months or years
+    let months = parseInt(tenure);
+    if (tenureType.toLowerCase() === "year") months *= 12;
+    else if (tenureType.toLowerCase() === "week") months = Math.ceil(months / 4); // approx weeks to months
+
+    const monthlyInterestPay = (parseFloat(depositAmount) * parseFloat(interestRate)) / (12 * 100);
+
+    // Generate unique MIP account number
+    const mipAccountNumber = `MIP${Date.now()}`;
+
+
+       if (Number(customer.savingAccountBalance) < Number(depositAmount)) {
+        return res.status(400).json({
+          success: false,
+          message: "Insufficient balance in saving account",
+        });
+      }
+
+
+    // Create new MIP scheme object
+    const newMipScheme = {
+      mipAccountNumber,
+      mipMonthlyInterestPay: monthlyInterestPay.toFixed(2), // monthly interest
+      mipOpeningDate: openingDate,
+      mipMaturityDate: maturityDate,
+      mipTenure: tenure,
+      mipTenureType: tenureType,
+      mipInterestRate: interestRate.toString(),
+      mipDepositAmount: depositAmount.toString(),
+      mipMaturityAmount: depositAmount.toString(),
+      mipAccountStatus: "active",
+    };
+
+
+
+ const transactionId = await generateTransactionId("MIP");
+    const transaction = await Transaction.create({
+      customerId,
+      transactionId,
+      managerId: customer.managerId,
+      schemeType: "MIP",
+      accountNumber: mipAccountNumber,
+      transactionType:"deposit",
+      amount: depositAmount,
+      mode:"bankTransfer",
+      agentId: customer.agentId,
+      areaManagerId: customer?.areaManagerId || "",
+      status: "approved",
+    });
+
+
+
+    // Push to customer's mipSchemes array
+    customer.mipSchemes.push(newMipScheme);
+    await customer.save({validateBeforeSave:false});
+
+    return res.status(201).json({
+      success: true,
+      message: "MIP scheme created successfully",
+      mipScheme: newMipScheme,
+      transaction:transaction
+    });
+  } catch (err) {
+    console.error("Error creating MIP scheme:", err);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+
 
 
 
