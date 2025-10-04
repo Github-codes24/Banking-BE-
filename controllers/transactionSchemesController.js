@@ -60,6 +60,8 @@ exports.rdTransaction = async (req, res) => {
 
     const now = new Date();
 
+    let totalPayableWithoutPenality;
+
     // 4. Handle EMI deposit
     if (transactionType === "emi") {
       const now = new Date();
@@ -92,8 +94,8 @@ exports.rdTransaction = async (req, res) => {
       let penalty = missedInstallments * 10;
 
       // Next due EMI date
-      const nextDueDate = new Date(openingDate);
-      nextDueDate.setMonth(openingDate.getMonth() + paidInstallments + 1);
+      const nextDueDate = new Date(scheme.rdNextEmiDate);
+      // nextDueDate.setMonth(openingDate.getMonth() + paidInstallments + 1);
 
       // Add grace period of 7 days
       const graceEndDate = new Date(nextDueDate);
@@ -114,7 +116,7 @@ exports.rdTransaction = async (req, res) => {
       console.log(nextDueDate, "nextDueDate");
       const totalPayable = installmentsDue * emiAmount + penalty;
 
-      const totalPayableWithoutPenality = installmentsDue * emiAmount
+      totalPayableWithoutPenality = installmentsDue * emiAmount
 
       // Validate payment amount
       if (Number(amount) !== totalPayable) {
@@ -147,6 +149,7 @@ exports.rdTransaction = async (req, res) => {
     // 6. Save customer updates
     await customer.save();
 
+      
     // 7. Create transaction record
     const transactionId = await generateTransactionId("RD");
     const transaction = await Transaction.create({
@@ -157,7 +160,8 @@ exports.rdTransaction = async (req, res) => {
       transactionType,
       amount: totalPayableWithoutPenality,
       mode,
-      installmentNo: (Number(scheme?.rdTotalDepositedInstallment) || 0),
+   installmentNo: (Number(scheme?.rdTotalDepositedInstallment) || 0) + 1,
+
       agentId: customer.agentId,
       areaManagerId: customer.areaManagerId,
       managerId: customer.managerId,
@@ -269,7 +273,7 @@ exports.fdTransaction = async (req, res) => {
       mode,
       agentId: customer.agentId,
       areaManagerId: customer?.areaManagerId || "",
-      status: "pending",
+      status: "accepted",
     });
 
     res.status(201).json({ success: true, data: transaction });
@@ -473,7 +477,7 @@ exports.pigmyEmiTransaction = async (req, res) => {
       transactionId,
       customerId,
       areaManagerId: customer?.areaManagerId,
-      schemeType: "Lakhpati",
+      schemeType: "PIGMY",
       accountNumber: pigMyAccountNumber,
       transactionType: "emi",
       amount,
@@ -1122,14 +1126,14 @@ exports.TransactionApproval = async (req, res) => {
                 scheme.pigMyTotalInstallmentDeposited =
                   Number(scheme.pigMyTotalInstallmentDeposited || 0) + 1;
 
-                scheme.pigMyAccountStatus = "active";
+                scheme.pigmyAccount = "active";
 
                 // 4. Check if maturity date has passed
                 const today = new Date();
                 const maturityDate = new Date(scheme.pigMyMaturityDate);
 
                 if (today >= maturityDate) {
-                  scheme.pigMyAccountStatus = "matured";
+                  scheme.pigmyAccount = "matured";
                   // await customer.save();
 
 

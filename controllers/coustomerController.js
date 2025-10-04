@@ -1224,7 +1224,7 @@ exports.createPigmy = async (req, res) => {
       pigMyTotalInstallmentDeposited: "0",
       pigmyDailyDeposit: pigmyDailyDeposit.toString(),
       pigMyMaturityAmount: maturityAmount.toFixed(2).toString(),
-      pigMyAccountStatus: "pending",
+      pigmyAccount: "pending",
     };
     customer.pigmy.push(newPigmy)
     await customer.save({ validateBeforeSave: false });
