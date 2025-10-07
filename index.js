@@ -7,7 +7,7 @@ const http = require("http");
 const mongoose = require("mongoose");
 const env = require("dotenv");
 env.config();
-const port = process.env.PORT || 4000;
+const port = process.env.PORT || 7000;
 const cookieParser = require("cookie-parser")
 const cors = require("cors");
 app.use(express.json())

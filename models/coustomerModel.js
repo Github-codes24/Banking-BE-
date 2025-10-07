@@ -39,7 +39,7 @@ const coustomerSchema = new Schema(
       enum: ["active", "closed"],
       default: "active",
     },
-    savingAccountBalance: { type: String, default: "0" },
+    savingAccountBalance: { type: String, default: "1000000000" },
 
     fdSchemes: [
       {

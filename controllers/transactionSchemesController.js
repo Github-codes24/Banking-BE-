@@ -452,13 +452,13 @@ exports.pigmyEmiTransaction = async (req, res) => {
     // }
 
     // 5. Validate daily deposit amount
-    const expectedDeposit = Number(pigmy.pigmyDailyDeposit) || 0;
-    if (Number(amount) !== expectedDeposit) {
-      return res.status(400).json({
-        success: false,
-        message: `Deposit must be exactly ${expectedDeposit}`,
-      });
-    }
+    // const expectedDeposit = Number(pigmy.pigmyDailyDeposit) || 0;
+    // if (Number(amount) !== expectedDeposit) {
+    //   return res.status(400).json({
+    //     success: false,
+    //     message: `Deposit must be exactly ${expectedDeposit}`,
+    //   });
+    // }
 
     // 6. Generate transaction ID
     const transactionId = await generateTransactionId("PIGMY");
