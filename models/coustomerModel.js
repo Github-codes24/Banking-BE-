@@ -39,6 +39,8 @@ const coustomerSchema = new Schema(
       enum: ["active", "closed"],
       default: "active",
     },
+
+
     savingAccountBalance: { type: String, default: "1000000000" },
 
     fdSchemes: [
@@ -68,7 +70,7 @@ const coustomerSchema = new Schema(
         },
         fdCloseDate: { type: Date },
 
-        
+
 
       },
     ],
@@ -217,7 +219,7 @@ const coustomerSchema = new Schema(
           type: String
         },
 
-      mipAccountStatus: {
+        mipAccountStatus: {
           type: String,
           enum: ["active", "closed", "matured", "pending"],
           default: "pending",

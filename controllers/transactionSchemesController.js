@@ -147,7 +147,7 @@ exports.rdTransaction = async (req, res) => {
     }
 
     // 6. Save customer updates
-    await customer.save();
+    await customer.save({validateBeforeSave:false});
 
       
     // 7. Create transaction record
