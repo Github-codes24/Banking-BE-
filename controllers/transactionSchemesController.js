@@ -273,7 +273,7 @@ exports.fdTransaction = async (req, res) => {
       mode,
       agentId: customer.agentId,
       areaManagerId: customer?.areaManagerId || "",
-      status: "accepted",
+      status: "approved",
     });
 
     res.status(201).json({ success: true, data: transaction });
