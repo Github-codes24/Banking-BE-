@@ -152,7 +152,7 @@ exports.getManagers = async (req, res) => {
       email,
       gender,
       education,
-      sort = "-createdAt",
+      sort = "createdAt",
       all, // NEW param
     } = req.query;
 

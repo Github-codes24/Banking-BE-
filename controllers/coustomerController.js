@@ -91,7 +91,7 @@ exports.getCustomers = async (req, res) => {
     const total = await Customer.countDocuments(filter);
 
     let query = Customer.find(filter)
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: 1 })
       .populate("branch", "name")
       .populate("managerId", "name")
       .populate("agentId", "name")

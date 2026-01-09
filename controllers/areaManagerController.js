@@ -75,7 +75,7 @@ exports.getAreaManagers = async (req, res) => {
       gender,
       education,
       managerId, // NEW filter
-      sort = "-createdAt",
+      sort = "createdAt",
       all, // NEW param to fetch all without pagination
     } = req.query;
 

@@ -162,7 +162,7 @@ exports.getAgents = async (req, res) => {
       .populate("managerId", "name email")
       .populate("areaManagerId", "name email") // ✅ populate areaManager
       .populate("branch", "name code")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: 1 });
 
     // ✅ If "all=true" → return all agents without pagination
     if (all === "true") {
