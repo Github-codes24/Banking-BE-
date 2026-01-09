@@ -41,7 +41,7 @@ const coustomerSchema = new Schema(
     },
 
 
-    savingAccountBalance: { type: String, default: "1000000000" },
+    savingAccountBalance: { type: String, default: "0.00" },
 
     fdSchemes: [
       {

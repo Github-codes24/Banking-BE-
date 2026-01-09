@@ -221,13 +221,13 @@ exports.createCustomer = async (req, res) => {
     req.body.CustomerId = String(nextCustomerNumber).padStart(8, "0");
 
     // ✅ Generate unique 8-digit Saving Account Number
-    const lastAccount = await Customer.findOne().sort({ createdAt: -1 });
-    let nextAccountNumber = 20000000; // start from 20000000
-    if (lastAccount && lastAccount.savingAccountNumber) {
-      const lastAccNum = parseInt(lastAccount.savingAccountNumber, 10);
-      nextAccountNumber = lastAccNum + 1;
-    }
-    req.body.savingAccountNumber = String(nextAccountNumber).padStart(8, "0");
+    // const lastAccount = await Customer.findOne().sort({ createdAt: -1 });
+    // let nextAccountNumber = 20000000; // start from 20000000
+    // if (lastAccount && lastAccount.savingAccountNumber) {
+    //   const lastAccNum = parseInt(lastAccount.savingAccountNumber, 10);
+    //   nextAccountNumber = lastAccNum + 1;
+    // }
+    // req.body.savingAccountNumber = String(nextAccountNumber).padStart(8, "0");
 
     // Other Saving Account defaults
     req.body.savingAccountOpeningDate = new Date();
@@ -1279,3 +1279,82 @@ exports.emiCalculator = async (req, res) => {
     res.status(500).json({ success: false, error: "Server Error" });
   }
 }
+
+exports.depositBalance = async (req, res) => {
+  try {
+    const { customerId, amount } = req.body;
+
+    if (!customerId || !amount || amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Customer ID and valid amount are required'
+      });
+    }
+
+    const customer = await Customer.findById(customerId);
+
+    if (!customer) {
+      return res.status(404).json({
+        success: false,
+        message: 'Customer not found'
+      });
+    }
+
+    // Add balance
+    customer.savingAccountBalance =
+      Number(customer.savingAccountBalance || 0) + Number(amount);
+
+    await customer.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Balance added successfully',
+      savingAccountBalance: customer.savingAccountBalance
+    });
+
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: err.message
+    });
+  }
+};
+
+
+exports.toggleSavingAccountStatus = async (req, res) => {
+  try {
+    const { customerId } = req.params;
+
+    const customer = await Customer.findById(customerId);
+
+    if (!customer) {
+      return res.status(404).json({
+        success: false,
+        message: "Customer not found"
+      });
+    }
+
+    // Toggle status
+    const newStatus =
+      customer.savingAccountStatus === "active" ? "closed" : "active";
+
+    customer.savingAccountStatus = newStatus;
+    await customer.save();
+
+    return res.status(200).json({
+      success: true,
+      message: `Account ${newStatus === "closed" ? "closed" : "re-opened"} successfully`,
+      savingAccountStatus: newStatus
+    });
+
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: err.message
+    });
+  }
+};

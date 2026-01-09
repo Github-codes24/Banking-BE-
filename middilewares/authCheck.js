@@ -36,10 +36,10 @@ exports.authCheck = async (req, res, next) => {
       // Try Agent / Customer
       user = await Agent.findById(decoded.id).select('+password');
     }
-    if (!user) {
-      // Try Agent / Customer
-      user = await Customer.findById(decoded.id).select('+password');
-    }
+    // if (!user) {
+    //   // Try Agent / Customer
+    //   user = await Customer.findById(decoded.id).select('+password');
+    // }
 
     if (!user) {
       return res.status(401).json({ msg: "No user found with this ID" });

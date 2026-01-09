@@ -17,9 +17,11 @@ const {
   getCustomerById,
   createLoan,
   createPigmy,
-  createLakhpatiSchems
+  createLakhpatiSchems,
+  depositBalance,
+  toggleSavingAccountStatus
 } = require("../controllers/coustomerController");
-const { authCheck } = require("../middilewares/authCheck");
+const { authCheck, authorizeRoles } = require("../middilewares/authCheck");
 
 const router = require("express").Router();
 
@@ -55,5 +57,7 @@ router.post("/createLakhpati/:customerId", authCheck, createLakhpatiSchems)
 router.post("/createMIP/:customerId", authCheck, createMipScheme)
 
 router.post("/emi/calculator", emiCalculator);
+router.post("/deposit/balance", authCheck , authorizeRoles("manager" ,"agent", "admin"), depositBalance);
+router.put("/:customerId/toggle-account-status", authCheck , authorizeRoles("manager","admin"), toggleSavingAccountStatus);
 
 module.exports = router;
